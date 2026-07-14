@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from salecast import config, db, discovery  # noqa: E402
+from salecast.clients.d1_client import D1Connection  # noqa: E402
 
 
 def main() -> None:
@@ -19,12 +20,19 @@ def main() -> None:
         "--limit", type=int, default=None,
         help="Cap the SteamSpy candidate set for a quick smoke test",
     )
+    parser.add_argument(
+        "--target", choices=["sqlite", "d1"], default="sqlite",
+        help="Storage backend: local SQLite file (default) or remote Cloudflare D1",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-    conn = db.get_connection(config.DB_PATH)
-    db.init_schema(conn)
+    if args.target == "d1":
+        conn = D1Connection()
+    else:
+        conn = db.get_connection(config.DB_PATH)
+        db.init_schema(conn)
 
     start = time.time()
     discovery.main(

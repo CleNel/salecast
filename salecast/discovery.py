@@ -142,10 +142,13 @@ def insert_tracked_games(conn: sqlite3.Connection, games: list[dict]) -> int:
             INSERT OR IGNORE INTO tracked_games
                 (app_id, name, genre, publisher, release_date, review_count,
                  review_score_pct, first_tracked_date)
-            VALUES (:app_id, :name, :genre, :publisher, :release_date,
-                    :review_count, :review_score_pct, :first_tracked_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            game,
+            (
+                game["app_id"], game["name"], game["genre"], game["publisher"],
+                game["release_date"], game["review_count"], game["review_score_pct"],
+                game["first_tracked_date"],
+            ),
         )
         inserted += cursor.rowcount
     conn.commit()

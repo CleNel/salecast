@@ -10,6 +10,11 @@ DB_PATH = str(PROJECT_ROOT / "data" / "salecast.db")
 
 ITAD_API_KEY = os.environ.get("ITAD_API_KEY")
 
+# Cloudflare D1 (remote storage target for scheduled jobs; see .env.example)
+CLOUDFLARE_ACCOUNT_ID = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
+CLOUDFLARE_D1_DATABASE_ID = os.environ.get("CLOUDFLARE_D1_DATABASE_ID")
+CLOUDFLARE_API_TOKEN = os.environ.get("CLOUDFLARE_API_TOKEN")
+
 # Discovery thresholds
 MIN_REVIEWS = 500
 MIN_AGE_MONTHS = 6
