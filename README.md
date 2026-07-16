@@ -2,7 +2,7 @@
 
 ML system that clusters Steam games by discounting behavior, predicts the probability a game hits a target discount, and combines both into a deal-quality score. See `steam-smart-buy-plan.md` for the full project spec.
 
-This repo currently implements **Week 1: data foundation** — discovering a curated set of ~500-1000 qualifying games and backfilling historical price data — plus the storage layer for **Week 2: automation**, a Cloudflare D1 database that scheduled jobs write to.
+This repo currently implements **Week 1: data foundation** — discovering a curated set of ~500-1000 qualifying games and backfilling historical price data — plus **Week 2: automation**, a Cloudflare D1 database and scheduled GitHub Actions jobs that keep it live.
 
 ## Setup
 
@@ -25,16 +25,36 @@ python scripts/run_discovery.py              # full run (~15-70 min)
 # Backfill historical price data (populates price_history)
 python scripts/run_backfill.py --limit 20    # smoke test
 python scripts/run_backfill.py               # full run
+
+# Scrape current prices for all tracked games (populates price_history daily)
+python scripts/run_daily_scrape.py --limit 20  # smoke test
+python scripts/run_daily_scrape.py             # full run
 ```
 
-Both scripts default to the local SQLite file at `data/salecast.db`. Pass `--target d1` to read/write the remote Cloudflare D1 database instead (used by the scheduled GitHub Actions jobs):
+All three scripts default to the local SQLite file at `data/salecast.db`. Pass `--target d1` to read/write the remote Cloudflare D1 database instead (used by the scheduled GitHub Actions jobs):
 
 ```
 python scripts/run_discovery.py --target d1
 python scripts/run_backfill.py --target d1
+python scripts/run_daily_scrape.py --target d1
 ```
 
 Default thresholds (min review count, min age since release, target tracked-game count) live in `salecast/config.py`.
+
+## Scheduled jobs
+
+Two GitHub Actions workflows keep the D1 database live, both targeting `--target d1`:
+
+- **`.github/workflows/daily-scrape.yml`** — runs `run_daily_scrape.py` every day at 06:00 UTC.
+- **`.github/workflows/weekly-discovery.yml`** — runs `run_discovery.py` then `run_backfill.py` every Monday at 05:00 UTC, so newly-qualifying games get picked up and their historical low backfilled (both scripts are idempotent, so this only does work for genuinely new games).
+
+Both are also triggerable manually from the Actions tab (`workflow_dispatch`), with an optional `limit` input for a smoke test.
+
+Set these as repo secrets (Settings > Secrets and variables > Actions) for the workflows to authenticate:
+
+- `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_D1_DATABASE_ID` — from `.env.example`.
+- `CLOUDFLARE_API_TOKEN` — the scoped D1 token described above.
+- `ITAD_API_KEY` — used by the weekly backfill step only.
 
 ## Tests
 
