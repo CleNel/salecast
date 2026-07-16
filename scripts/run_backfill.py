@@ -39,9 +39,9 @@ def main() -> None:
         sys.exit(1)
 
     count = conn.execute(
-        "SELECT COUNT(*) FROM price_history WHERE source = 'itad_backfill'"
+        "SELECT COUNT(*) FROM price_history WHERE source = 'itad_history'"
     ).fetchone()[0]
-    print(f"price_history now has {count} itad_backfill rows")
+    print(f"price_history now has {count} itad_history rows")
 
 
 if __name__ == "__main__":

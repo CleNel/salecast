@@ -11,6 +11,10 @@ logger = logging.getLogger(__name__)
 BASE_URL = "https://api.isthereanydeal.com"
 LOOKUP_URL = f"{BASE_URL}/games/lookup/v1"
 HISTORY_LOW_URL = f"{BASE_URL}/games/historylow/v1"
+HISTORY_URL = f"{BASE_URL}/games/history/v2"
+
+# Steam's shop id in ITAD's shop registry - we only track Steam prices.
+STEAM_SHOP_ID = 61
 
 
 class MissingApiKeyError(RuntimeError):
@@ -78,3 +82,43 @@ def get_historical_low(
         "currency": price.get("currency"),
         "shop": (low.get("shop") or {}).get("name"),
     }
+
+
+def get_price_history(
+    itad_id: str,
+    since: str | None = None,
+    region: str = "US",
+    session: requests.Session | None = None,
+) -> list[dict[str, Any]]:
+    """Fetches the full log of Steam price/discount changes for a resolved
+    ITAD game id (GET /games/history/v2), optionally bounded by since (an
+    ISO 8601 datetime - pass the game's release date to get its whole
+    lifetime). Returns a list of {"date": "YYYY-MM-DD", "price": float,
+    "discount_pct": int} ordered as ITAD returns them (newest first).
+    Empty list if ITAD has no Steam price history on record."""
+    api_key = _require_api_key()
+    session = session or requests.Session()
+    params = {"key": api_key, "id": itad_id, "country": region, "shops": STEAM_SHOP_ID}
+    if since is not None:
+        params["since"] = since
+
+    response = get_with_backoff(session, HISTORY_URL, params=params, retries=config.ITAD_RETRIES)
+    if response is None:
+        return []
+
+    events = response.json()
+    history = []
+    for event in events or []:
+        deal = event.get("deal") or {}
+        price = (deal.get("price") or {}).get("amount")
+        timestamp = event.get("timestamp")
+        if price is None or not timestamp:
+            continue
+        history.append(
+            {
+                "date": timestamp[:10],
+                "price": price,
+                "discount_pct": deal.get("cut"),
+            }
+        )
+    return history

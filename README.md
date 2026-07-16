@@ -22,7 +22,7 @@ To write to the remote Cloudflare D1 database (instead of the default local SQLi
 python scripts/run_discovery.py --limit 50   # smoke test
 python scripts/run_discovery.py              # full run (~15-70 min)
 
-# Backfill historical price data (populates price_history)
+# Backfill full historical Steam price/discount events via ITAD (populates price_history)
 python scripts/run_backfill.py --limit 20    # smoke test
 python scripts/run_backfill.py               # full run
 
@@ -46,7 +46,7 @@ Default thresholds (min review count, min age since release, target tracked-game
 Two GitHub Actions workflows keep the D1 database live, both targeting `--target d1`:
 
 - **`.github/workflows/daily-scrape.yml`** — runs `run_daily_scrape.py` every day at 06:00 UTC.
-- **`.github/workflows/weekly-discovery.yml`** — runs `run_discovery.py` then `run_backfill.py` every Monday at 05:00 UTC, so newly-qualifying games get picked up and their historical low backfilled (both scripts are idempotent, so this only does work for genuinely new games).
+- **`.github/workflows/weekly-discovery.yml`** — runs `run_discovery.py` then `run_backfill.py` every Monday at 05:00 UTC, so newly-qualifying games get picked up and their full Steam price history backfilled (both scripts are idempotent, so this only does work for genuinely new games).
 
 Both are also triggerable manually from the Actions tab (`workflow_dispatch`), with an optional `limit` input for a smoke test.
 
