@@ -116,6 +116,35 @@ def test_backfill_game_returns_zero_when_no_itad_match(monkeypatch):
     assert conn.execute("SELECT COUNT(*) FROM price_history").fetchone()[0] == 0
 
 
+def test_backfill_game_uses_execute_batch_when_available(monkeypatch):
+    class _FakeD1Conn:
+        def __init__(self):
+            self.batches = []
+
+        def execute_batch(self, statements):
+            self.batches.append(statements)
+            return len(statements)
+
+    conn = _FakeD1Conn()
+
+    monkeypatch.setattr(backfill.itad_client, "resolve_itad_id", lambda app_id: "itad-id-42")
+    monkeypatch.setattr(
+        backfill.itad_client,
+        "get_price_history",
+        lambda itad_id, since=None, region="US": [
+            {"date": "2026-06-18", "price": 3.99, "discount_pct": 90},
+            {"date": "2020-01-01", "price": 39.99, "discount_pct": 0},
+        ],
+    )
+    monkeypatch.setattr("time.sleep", lambda _: None)
+
+    inserted = backfill.backfill_game(conn, 42, "2015-01-01")
+
+    assert inserted == 2
+    assert len(conn.batches) == 1
+    assert len(conn.batches[0]) == 2
+
+
 def test_backfill_game_returns_zero_when_no_history(monkeypatch):
     conn = _make_conn_with_games([42])
 

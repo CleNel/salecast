@@ -92,6 +92,33 @@ class D1Connection:
         rowcount = result.get("meta", {}).get("changes", len(rows))
         return D1Cursor(rowcount=rowcount, rows=rows)
 
+    def execute_batch(self, statements: Sequence[tuple[str, Sequence[Any]]]) -> int:
+        """Executes multiple statements in a single HTTP round-trip via D1's
+        batch query endpoint. Returns total rows changed across all statements.
+        Use this instead of looping execute() when inserting many rows at once
+        (e.g. one game's full price history) - each execute() call is a
+        separate network round-trip, which dominates runtime at scale."""
+        if not statements:
+            return 0
+
+        response = self._session.post(
+            self._url,
+            headers=self._headers,
+            json={"batch": [{"sql": sql, "params": list(params)} for sql, params in statements]},
+            timeout=30,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if not payload.get("success"):
+            raise RuntimeError(f"D1 batch query failed: {payload.get('errors')}")
+
+        total_changes = 0
+        for result in payload["result"]:
+            if not result.get("success", True):
+                raise RuntimeError(f"D1 batch query failed: {result.get('error')}")
+            total_changes += result.get("meta", {}).get("changes", 0)
+        return total_changes
+
     def commit(self) -> None:
         """No-op: each execute() call is committed remotely by D1 immediately."""
 

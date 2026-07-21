@@ -34,17 +34,22 @@ def backfill_game(
     if not events:
         return 0
 
-    inserted = 0
-    for event in events:
-        cursor = conn.execute(
-            """
-            INSERT OR IGNORE INTO price_history (app_id, date, price, discount_pct, source)
-            VALUES (?, ?, ?, ?, 'itad_history')
-            """,
-            (app_id, event["date"], event["price"], event["discount_pct"]),
-        )
-        inserted += cursor.rowcount
-    conn.commit()
+    insert_sql = """
+        INSERT OR IGNORE INTO price_history (app_id, date, price, discount_pct, source)
+        VALUES (?, ?, ?, ?, 'itad_history')
+    """
+    statements = [
+        (insert_sql, (app_id, event["date"], event["price"], event["discount_pct"]))
+        for event in events
+    ]
+
+    if hasattr(conn, "execute_batch"):
+        inserted = conn.execute_batch(statements)
+    else:
+        inserted = 0
+        for sql, params in statements:
+            inserted += conn.execute(sql, params).rowcount
+        conn.commit()
     return inserted
 
 
