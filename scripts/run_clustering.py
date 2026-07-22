@@ -41,7 +41,7 @@ def main() -> None:
         conn = D1Connection()
     else:
         conn = db.get_connection(args.db_path)
-        db.init_schema(conn)
+    db.init_schema(conn)
 
     tracked_games = pd.DataFrame(
         [dict(row) for row in conn.execute("SELECT * FROM tracked_games").fetchall()]

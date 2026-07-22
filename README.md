@@ -2,7 +2,7 @@
 
 ML system that clusters Steam games by discounting behavior, predicts the probability a game hits a target discount, and combines both into a deal-quality score. See `steam-smart-buy-plan.md` for the full project spec.
 
-This repo currently implements **Week 1: data foundation** — discovering a curated set of ~500-1000 qualifying games and backfilling historical price data — plus **Week 2: automation**, a Cloudflare D1 database and scheduled GitHub Actions jobs that keep it live — plus **Week 3: clustering**, grouping games by discounting behavior (how deep, how often, how it trends over time) via K-means.
+This repo currently implements **Week 1: data foundation** — discovering a curated set of ~500-1000 qualifying games and backfilling historical price data — plus **Week 2: automation**, a Cloudflare D1 database and scheduled GitHub Actions jobs that keep it live — plus **Week 3: clustering**, grouping games by discounting behavior (how deep, how often, how it trends over time) via K-means — plus **Week 4: smart-buy model**, predicting the probability a game hits a target discount within N days.
 
 ## Setup
 
@@ -32,23 +32,30 @@ python scripts/run_daily_scrape.py             # full run
 
 # Cluster tracked games by discounting behavior (populates cluster_labels)
 python scripts/run_clustering.py
+
+# Train the smart-buy model and score every tracked game (populates smart_buy_scores)
+python scripts/run_smart_buy.py
 ```
 
 Clustering needs a full price history to compute meaningful features, so games with fewer than `MIN_DISCOUNT_EVENTS` (`salecast/features.py`) recorded discounts are skipped rather than force-fit. K is chosen automatically via silhouette score (`salecast/clustering.py`), excluding any k that isolates a cluster smaller than `MIN_CLUSTER_SIZE` (avoids a single outlier game becoming its own "cluster"). Pass `--k` to override, and `--plot path.png` to change where the PCA scatter plot is saved (`--plot ''` to skip it).
 
-All four scripts default to the local SQLite file at `data/salecast.db`. Pass `--target d1` to read/write the remote Cloudflare D1 database instead (used by the scheduled GitHub Actions jobs):
+The smart-buy model (`salecast/labels.py`, `salecast/smart_buy.py`) answers "will this game hit X% off within Y days" for three scenarios (`SCENARIOS` in `labels.py`: 50%/30 days, 30%/14 days, 70%/60 days), trained on synthetic observation points sampled every `OBSERVATION_STEP_DAYS` along each game's real price history, with `target_discount`/`horizon_days` themselves as model features so one classifier generalizes across all three. It trains both a logistic regression and a random forest on a game-level train/test split (so no game's own history leaks between train and test), picks whichever scores higher on held-out ROC AUC, and writes one `smart_buy_scores` row per (game, scenario). Pass `--model` to force a specific one instead of auto-selecting.
+
+All five scripts default to the local SQLite file at `data/salecast.db`. Pass `--target d1` to read/write the remote Cloudflare D1 database instead (used by the scheduled GitHub Actions jobs):
 
 ```
 python scripts/run_discovery.py --target d1
 python scripts/run_backfill.py --target d1
 python scripts/run_daily_scrape.py --target d1
 python scripts/run_clustering.py --target d1
+python scripts/run_smart_buy.py --target d1
 ```
 
-For offline analysis against a snapshot of the live D1 data instead of the small local dev database, export it first (`npx wrangler d1 export salecast --remote --output=data/snapshot.sql`, then load it into a local SQLite file), and point clustering at it with `--db-path`:
+For offline analysis against a snapshot of the live D1 data instead of the small local dev database, export it first (`npx wrangler d1 export salecast --remote --output=data/snapshot.sql`, then load it into a local SQLite file), and point either script at it with `--db-path`:
 
 ```
 python scripts/run_clustering.py --db-path data/snapshot.db
+python scripts/run_smart_buy.py --db-path data/snapshot.db
 ```
 
 Default thresholds (min review count, min age since release, target tracked-game count) live in `salecast/config.py`.

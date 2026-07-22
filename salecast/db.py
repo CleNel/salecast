@@ -12,7 +12,19 @@ def get_connection(db_path: str) -> sqlite3.Connection:
     return conn
 
 
-def init_schema(conn: sqlite3.Connection) -> None:
+def init_schema(conn) -> None:
+    """Applies sql/schema.sql (all CREATE TABLE/INDEX IF NOT EXISTS - a
+    no-op for tables that already exist with a different shape, so this is
+    safe to call unconditionally). Works for both sqlite3.Connection and
+    D1Connection, which has no executescript() and must run one statement
+    per HTTP call."""
     schema_sql = SCHEMA_PATH.read_text()
-    conn.executescript(schema_sql)
-    conn.commit()
+    if hasattr(conn, "executescript"):
+        conn.executescript(schema_sql)
+        conn.commit()
+        return
+
+    for statement in schema_sql.split(";"):
+        statement = statement.strip()
+        if statement:
+            conn.execute(statement)

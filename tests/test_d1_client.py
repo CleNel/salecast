@@ -2,11 +2,11 @@ from salecast.clients.d1_client import D1Connection, D1Row, D1Cursor
 
 
 class _FakeResponse:
-    def __init__(self, payload):
+    def __init__(self, payload, status_code=200):
         self._payload = payload
-
-    def raise_for_status(self):
-        pass
+        self.ok = status_code < 400
+        self.status_code = status_code
+        self.text = str(payload)
 
     def json(self):
         return self._payload

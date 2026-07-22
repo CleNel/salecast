@@ -72,15 +72,18 @@ class D1Connection:
         self._headers = {"Authorization": f"Bearer {api_token}"}
         self._session = session or requests.Session()
 
+    def _post(self, json_body: dict) -> dict:
+        """POSTs to D1's query endpoint and returns the parsed payload. Raises
+        with the response body included (not just the status code) - D1
+        returns a JSON error describing exactly what's wrong (e.g. missing
+        table, malformed SQL) that a bare raise_for_status() would discard."""
+        response = self._session.post(self._url, headers=self._headers, json=json_body, timeout=30)
+        if not response.ok:
+            raise RuntimeError(f"D1 request failed ({response.status_code}): {response.text[:1000]}")
+        return response.json()
+
     def execute(self, sql: str, params: Sequence[Any] = ()) -> D1Cursor:
-        response = self._session.post(
-            self._url,
-            headers=self._headers,
-            json={"sql": sql, "params": list(params)},
-            timeout=30,
-        )
-        response.raise_for_status()
-        payload = response.json()
+        payload = self._post({"sql": sql, "params": list(params)})
         if not payload.get("success"):
             raise RuntimeError(f"D1 query failed: {payload.get('errors')}")
 
@@ -101,14 +104,9 @@ class D1Connection:
         if not statements:
             return 0
 
-        response = self._session.post(
-            self._url,
-            headers=self._headers,
-            json={"batch": [{"sql": sql, "params": list(params)} for sql, params in statements]},
-            timeout=30,
+        payload = self._post(
+            {"batch": [{"sql": sql, "params": list(params)} for sql, params in statements]}
         )
-        response.raise_for_status()
-        payload = response.json()
         if not payload.get("success"):
             raise RuntimeError(f"D1 batch query failed: {payload.get('errors')}")
 

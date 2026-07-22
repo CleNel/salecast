@@ -26,11 +26,16 @@ CREATE TABLE IF NOT EXISTS cluster_labels (
   last_updated TEXT
 );
 
+-- One row per (game, "hits X% off within Y days") scenario - a single game
+-- carries a different probability for each target_discount/horizon_days
+-- combination the smart-buy model is asked about (see salecast/smart_buy.py).
 CREATE TABLE IF NOT EXISTS smart_buy_scores (
-  app_id          INTEGER PRIMARY KEY REFERENCES tracked_games(app_id),
+  app_id          INTEGER NOT NULL REFERENCES tracked_games(app_id),
+  target_discount INTEGER NOT NULL,
+  horizon_days    INTEGER NOT NULL,
   probability     REAL,
-  target_discount INTEGER,
-  last_updated    TEXT
+  last_updated    TEXT,
+  PRIMARY KEY (app_id, target_discount, horizon_days)
 );
 
 CREATE TABLE IF NOT EXISTS deal_scores (
