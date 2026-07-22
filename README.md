@@ -118,7 +118,13 @@ cd docs && python -m http.server 8080   # in another
 
 Then open `http://localhost:8080`, expand "API settings", and point it at `http://localhost:8000` (uvicorn's default port) if you didn't run the API on 8080 already.
 
-To publish it free on GitHub Pages: repo Settings > Pages > set source to the `main` branch, `/docs` folder. Once deployed, open the page's "API settings" and point `API base URL` at wherever `salecast/api.py` ends up running (e.g. the Render URL from the API section above) - it's a plain input persisted in the browser's local storage, not a build-time config, so this works without rebuilding or redeploying anything.
+To publish it free on [Cloudflare Pages](https://pages.cloudflare.com) (same account as D1, so one dashboard for both):
+
+```
+npx wrangler pages deploy docs --project-name=salecast
+```
+
+This is a static-asset upload, not a git-connected build - rerun it after any `docs/` change to redeploy. Once deployed, open the page's "API settings" and point `API base URL` at wherever `salecast/api.py` ends up running (e.g. the Render URL from the API section above) - it's a plain input persisted in the browser's local storage, not a build-time config, so this works without rebuilding or redeploying anything. To use a custom domain instead of `*.pages.dev`, add it under the Pages project's "Custom domains" tab in the Cloudflare dashboard - DNS is already there since D1 uses the same account.
 
 ## Scheduled jobs
 
