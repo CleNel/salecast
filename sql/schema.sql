@@ -6,7 +6,11 @@ CREATE TABLE IF NOT EXISTS tracked_games (
   release_date       TEXT,
   review_count       INTEGER,
   review_score_pct   REAL,
-  first_tracked_date TEXT NOT NULL
+  first_tracked_date TEXT NOT NULL,
+  -- Free-to-play games can't be "discounted" - excluded from clustering,
+  -- the smart-buy model, and the deal score (see salecast/scrape.py,
+  -- which keeps this current from Steam's own is_free flag).
+  is_free            INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS price_history (

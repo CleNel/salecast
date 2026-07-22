@@ -62,6 +62,7 @@ def test_get_app_details_maps_discounted_game(monkeypatch):
         "publisher": "Great Publisher",
         "release_date": "2020-12-21",
         "is_released": True,
+        "is_free": False,
         "price": 9.99,
         "discount_pct": 50,
         "review_count": 12000,
@@ -76,6 +77,7 @@ def test_get_app_details_handles_free_game_with_no_price_overview(monkeypatch):
         "publishers": [],
         "release_date": {"date": "2020", "coming_soon": False},
         "recommendations": {},
+        "is_free": True,
     }
     monkeypatch.setattr(
         steam_client, "get_with_backoff",
@@ -89,6 +91,24 @@ def test_get_app_details_handles_free_game_with_no_price_overview(monkeypatch):
     assert details["genre"] is None
     assert details["publisher"] is None
     assert details["review_count"] is None
+    assert details["is_free"] is True
+
+
+def test_get_app_details_defaults_is_free_to_false_when_absent(monkeypatch):
+    data = {
+        "name": "Paid Game",
+        "type": "game",
+        "release_date": {"date": "2020", "coming_soon": False},
+        "price_overview": {"final": 1999, "discount_percent": 0},
+    }
+    monkeypatch.setattr(
+        steam_client, "get_with_backoff",
+        lambda session, url, params=None, retries=3: _FakeResponse(_appdetails_payload(9, data=data)),
+    )
+
+    details = steam_client.get_app_details(9)
+
+    assert details["is_free"] is False
 
 
 def test_get_app_details_marks_unreleased_coming_soon_game(monkeypatch):

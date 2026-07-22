@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def _load_tables(conn) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     tracked_games = pd.DataFrame(
-        [dict(row) for row in conn.execute("SELECT * FROM tracked_games").fetchall()]
+        [dict(row) for row in conn.execute("SELECT * FROM tracked_games WHERE is_free = 0").fetchall()]
     )
     price_history = pd.DataFrame(
         [

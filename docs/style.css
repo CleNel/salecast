@@ -130,6 +130,7 @@ header h1 {
 .deal-score.good { color: var(--good); }
 .deal-score.mid { color: var(--mid); }
 .deal-score.bad { color: var(--bad); }
+.deal-score.free { color: var(--accent); font-size: 1.6rem; }
 
 .score-label {
   color: var(--text-muted);

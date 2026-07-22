@@ -91,6 +91,7 @@ def enrich_and_filter_candidates(
             details is not None
             and details.get("type") == "game"
             and details.get("is_released")
+            and not details.get("is_free")
             and details.get("release_date")
             and months_since(details["release_date"], today) >= min_age_months
         )

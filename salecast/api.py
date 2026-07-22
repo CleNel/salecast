@@ -76,6 +76,7 @@ def get_game(app_id: int, conn=Depends(get_connection)):
         "name": game["name"],
         "genre": game["genre"],
         "publisher": game["publisher"],
+        "is_free": bool(game["is_free"]),
         "current_price": latest_price["price"] if latest_price else None,
         "current_discount_pct": latest_price["discount_pct"] if latest_price else None,
         "price_as_of": latest_price["date"] if latest_price else None,

@@ -44,7 +44,7 @@ def main() -> None:
     db.init_schema(conn)
 
     tracked_games = pd.DataFrame(
-        [dict(row) for row in conn.execute("SELECT * FROM tracked_games").fetchall()]
+        [dict(row) for row in conn.execute("SELECT * FROM tracked_games WHERE is_free = 0").fetchall()]
     )
     price_history = pd.DataFrame(
         [

@@ -72,24 +72,37 @@ function scoreClass(score) {
 function renderGame(game) {
   gamePanel.classList.remove("hidden");
 
+  // Free-to-play games can't be "discounted", so their deal score and
+  // smart-buy odds are meaningless (and the API doesn't compute them) -
+  // show that plainly instead of a blank dash that reads like missing data.
   const dealScore = game.deal_score;
-  const dealScoreText = dealScore === null || dealScore === undefined ? "—" : String(Math.round(dealScore));
-  const clusterLine = game.cluster_id === null || game.cluster_id === undefined
-    ? "not enough discount history to cluster yet"
-    : `cluster ${game.cluster_id}`;
+  const dealScoreText = game.is_free
+    ? "Free"
+    : dealScore === null || dealScore === undefined
+      ? "—"
+      : String(Math.round(dealScore));
+  const dealScoreCssClass = game.is_free ? "free" : scoreClass(dealScore);
 
-  const smartBuyRows = game.smart_buy_probabilities.length
-    ? game.smart_buy_probabilities
-        .map(
-          (row) => `
+  const clusterLine = game.is_free
+    ? "free-to-play - not applicable"
+    : game.cluster_id === null || game.cluster_id === undefined
+      ? "not enough discount history to cluster yet"
+      : `cluster ${game.cluster_id}`;
+
+  const smartBuyRows = game.is_free
+    ? `<tr><td colspan="3" class="empty-state">This game is free to play - no discount to track</td></tr>`
+    : game.smart_buy_probabilities.length
+      ? game.smart_buy_probabilities
+          .map(
+            (row) => `
         <tr>
           <td>${row.target_discount}% off</td>
           <td>within ${row.horizon_days} days</td>
           <td>${Math.round(row.probability * 100)}%</td>
         </tr>`
-        )
-        .join("")
-    : `<tr><td colspan="3" class="empty-state">No smart-buy scores yet</td></tr>`;
+          )
+          .join("")
+      : `<tr><td colspan="3" class="empty-state">No smart-buy scores yet</td></tr>`;
 
   // Numbers above are all formatted server-side-controlled values, safe to
   // interpolate; anything sourced from the game's name/genre/publisher is
@@ -99,9 +112,9 @@ function renderGame(game) {
     <h2 id="game-name"></h2>
     <p class="game-meta" id="game-meta"></p>
     <div class="score-row">
-      <div class="deal-score ${scoreClass(dealScore)}">${dealScoreText}</div>
+      <div class="deal-score ${dealScoreCssClass}">${dealScoreText}</div>
       <div>
-        <div class="score-label">Deal score (0-100)</div>
+        <div class="score-label">${game.is_free ? "Deal score" : "Deal score (0-100)"}</div>
         <div class="price-line" id="price-line"></div>
       </div>
     </div>
@@ -116,7 +129,9 @@ function renderGame(game) {
     [game.genre, game.publisher].filter(Boolean).join(" · ") + (game.genre || game.publisher ? " · " : "") + clusterLine;
 
   const priceLineEl = document.getElementById("price-line");
-  if (game.current_price === null || game.current_price === undefined) {
+  if (game.is_free) {
+    priceLineEl.textContent = "Free to play";
+  } else if (game.current_price === null || game.current_price === undefined) {
     priceLineEl.textContent = "No price data yet";
   } else {
     priceLineEl.textContent = `$${Number(game.current_price).toFixed(2)}`;

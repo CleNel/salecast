@@ -38,6 +38,27 @@ def test_enrich_and_filter_excludes_non_games(monkeypatch):
     assert survivors == []
 
 
+def test_enrich_and_filter_excludes_free_to_play_games(monkeypatch):
+    def fake_batch(app_ids, delay_sec=0):
+        for app_id in app_ids:
+            yield app_id, {
+                "type": "game",
+                "is_released": True,
+                "is_free": True,
+                "release_date": "2020-01-01",
+                "name": "Free Game",
+                "genre": "Action",
+                "publisher": "Pub",
+                "review_count": 100000,
+            }
+
+    monkeypatch.setattr(
+        "salecast.clients.steam_client.rate_limited_appdetails_batch", fake_batch
+    )
+    survivors = discovery.enrich_and_filter_candidates({1}, min_age_months=6)
+    assert survivors == []
+
+
 def test_enrich_and_filter_excludes_too_young(monkeypatch):
     def fake_batch(app_ids, delay_sec=0):
         for app_id in app_ids:

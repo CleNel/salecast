@@ -22,9 +22,23 @@ def init_schema(conn) -> None:
     if hasattr(conn, "executescript"):
         conn.executescript(schema_sql)
         conn.commit()
-        return
+    else:
+        for statement in schema_sql.split(";"):
+            statement = statement.strip()
+            if statement:
+                conn.execute(statement)
 
-    for statement in schema_sql.split(";"):
-        statement = statement.strip()
-        if statement:
-            conn.execute(statement)
+    _add_column_if_missing(conn, "tracked_games", "is_free", "INTEGER NOT NULL DEFAULT 0")
+
+
+def _add_column_if_missing(conn, table: str, column: str, ddl: str) -> None:
+    """CREATE TABLE IF NOT EXISTS can't add a column to a table that
+    already exists from before that column was introduced (local sqlite
+    files created earlier, or the live D1 database) - ALTER TABLE ADD
+    COLUMN is the only way, and it errors if the column is already there,
+    so this makes it idempotent to call on every init_schema()."""
+    try:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+    except Exception as exc:
+        if "duplicate column" not in str(exc).lower():
+            raise

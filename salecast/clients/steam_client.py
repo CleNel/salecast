@@ -79,6 +79,7 @@ def get_app_details(
         "publisher": publishers[0] if publishers else None,
         "release_date": _parse_release_date((data.get("release_date") or {}).get("date")),
         "is_released": not (data.get("release_date") or {}).get("coming_soon", False),
+        "is_free": bool(data.get("is_free", False)),
         "price": (price_overview.get("final") or 0) / 100 if price_overview else None,
         "discount_pct": price_overview.get("discount_percent"),
         "review_count": recommendations.get("total"),

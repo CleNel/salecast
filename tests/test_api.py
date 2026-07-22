@@ -66,12 +66,30 @@ def test_get_game_returns_full_profile(client):
     assert response.status_code == 200
     body = response.json()
     assert body["name"] == "Counter-Strike 2"
+    assert body["is_free"] is False
     assert body["cluster_id"] == 2
     assert body["deal_score"] == 82.5
     assert body["current_discount_pct"] == 50
     assert body["smart_buy_probabilities"] == [
         {"target_discount": 50, "horizon_days": 30, "probability": 0.75}
     ]
+
+
+def test_get_game_reports_is_free(client, conn):
+    conn.execute(
+        """
+        INSERT INTO tracked_games
+            (app_id, name, genre, publisher, release_date, review_count,
+             review_score_pct, first_tracked_date, is_free)
+        VALUES (440, 'Team Fortress 2', 'Action', 'Valve', '2007-10-10', 900000, 95.0, '2026-01-01', 1)
+        """
+    )
+    conn.commit()
+
+    response = client.get("/game/440")
+
+    assert response.status_code == 200
+    assert response.json()["is_free"] is True
 
 
 def test_get_game_404_for_untracked_app(client):

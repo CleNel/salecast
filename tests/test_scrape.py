@@ -134,3 +134,70 @@ def test_scrape_game_skips_unpriced_apps(monkeypatch):
     assert inserted == 0
     count = conn.execute("SELECT COUNT(*) FROM price_history").fetchone()[0]
     assert count == 0
+
+
+def test_scrape_game_returns_zero_when_request_fails(monkeypatch):
+    conn = _make_conn_with_games([730])
+
+    monkeypatch.setattr(scrape.steam_client, "get_app_details", lambda app_id, session=None: None)
+    monkeypatch.setattr("time.sleep", lambda _: None)
+
+    assert scrape.scrape_game(conn, 730) == 0
+
+
+def test_scrape_game_marks_is_free_and_skips_price_row(monkeypatch):
+    conn = _make_conn_with_games([730])
+
+    monkeypatch.setattr(
+        scrape.steam_client,
+        "get_app_details",
+        lambda app_id, session=None: {"price": None, "is_free": True},
+    )
+    monkeypatch.setattr("time.sleep", lambda _: None)
+
+    inserted = scrape.scrape_game(conn, 730)
+
+    assert inserted == 0
+    row = conn.execute("SELECT is_free FROM tracked_games WHERE app_id = 730").fetchone()
+    assert row["is_free"] == 1
+
+
+def test_scrape_game_keeps_is_free_false_for_paid_games(monkeypatch):
+    conn = _make_conn_with_games([730])
+
+    monkeypatch.setattr(
+        scrape.steam_client,
+        "get_app_details",
+        lambda app_id, session=None: {"price": 9.99, "discount_pct": 0, "is_free": False},
+    )
+    monkeypatch.setattr(scrape.steamspy_client, "get_app_stats", lambda app_id, session=None: None)
+    monkeypatch.setattr("time.sleep", lambda _: None)
+
+    scrape.scrape_game(conn, 730)
+
+    row = conn.execute("SELECT is_free FROM tracked_games WHERE app_id = 730").fetchone()
+    assert row["is_free"] == 0
+
+
+def test_scrape_game_clears_derived_scores_when_newly_free(monkeypatch):
+    conn = _make_conn_with_games([730])
+    conn.execute("INSERT INTO cluster_labels (app_id, cluster_id, last_updated) VALUES (730, 2, 'x')")
+    conn.execute(
+        "INSERT INTO smart_buy_scores (app_id, target_discount, horizon_days, probability, last_updated) "
+        "VALUES (730, 50, 30, 0.8, 'x')"
+    )
+    conn.execute("INSERT INTO deal_scores (app_id, composite_score, last_updated) VALUES (730, 90.0, 'x')")
+    conn.commit()
+
+    monkeypatch.setattr(
+        scrape.steam_client,
+        "get_app_details",
+        lambda app_id, session=None: {"price": None, "is_free": True},
+    )
+    monkeypatch.setattr("time.sleep", lambda _: None)
+
+    scrape.scrape_game(conn, 730)
+
+    assert conn.execute("SELECT COUNT(*) FROM cluster_labels WHERE app_id = 730").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM smart_buy_scores WHERE app_id = 730").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM deal_scores WHERE app_id = 730").fetchone()[0] == 0

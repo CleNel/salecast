@@ -11,6 +11,23 @@ from salecast.clients import steam_client, steamspy_client
 logger = logging.getLogger(__name__)
 
 
+def _clear_derived_scores(conn, app_id: int) -> None:
+    """Wipes cluster/smart-buy/deal-score rows for a game that just turned
+    out to be free-to-play - they're meaningless once there's no discount
+    to speak of, and a stale score would keep showing on the site."""
+    statements = [
+        ("DELETE FROM cluster_labels WHERE app_id = ?", (app_id,)),
+        ("DELETE FROM smart_buy_scores WHERE app_id = ?", (app_id,)),
+        ("DELETE FROM deal_scores WHERE app_id = ?", (app_id,)),
+    ]
+    if hasattr(conn, "execute_batch"):
+        conn.execute_batch(statements)
+    else:
+        for sql, params in statements:
+            conn.execute(sql, params)
+        conn.commit()
+
+
 def scrape_game(
     conn: sqlite3.Connection,
     app_id: int,
@@ -22,11 +39,25 @@ def scrape_game(
     price_history (source='daily_scrape'). Returns rows inserted (0 if the
     app has no store listing or isn't currently priced, e.g. free-to-play).
 
+    Also keeps tracked_games.is_free current from Steam's own flag - a game
+    can go free-to-play after it was first tracked (e.g. Counter-Strike 2
+    in 2018), and once it does, its cluster/smart-buy/deal-score rows are
+    cleared since "will this hit a discount" no longer means anything.
+
     Sleeps intra_call_delay_sec between the two calls this makes (Steam
     appdetails, then SteamSpy) so a single game's scrape doesn't burst both
     APIs back-to-back."""
     details = steam_client.get_app_details(app_id, session=session)
-    if details is None or details.get("price") is None:
+    if details is None:
+        return 0
+
+    is_free = int(bool(details.get("is_free")))
+    conn.execute("UPDATE tracked_games SET is_free = ? WHERE app_id = ?", (is_free, app_id))
+    if is_free:
+        _clear_derived_scores(conn, app_id)
+    conn.commit()
+
+    if details.get("price") is None:
         return 0
 
     time.sleep(intra_call_delay_sec)
