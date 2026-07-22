@@ -116,9 +116,9 @@ uvicorn salecast.api:app --reload   # in one terminal
 cd docs && python -m http.server 8080   # in another
 ```
 
-Then open `http://localhost:8080`, expand "API settings", and point it at `http://localhost:8000` (uvicorn's default port) if you didn't run the API on 8080 already.
+Then open `http://localhost:8080`, expand "API settings", and point it at `http://localhost:8000` (uvicorn's default port) - the page defaults to the deployed Render API (below), so local testing needs this override to hit your local server instead.
 
-To publish it free on [Cloudflare Pages](https://pages.cloudflare.com) (same account as D1, so one dashboard for both):
+The deployed site is live at https://salecast.cleomenenelli.us (Cloudflare Pages) talking to https://salecast-api.onrender.com (Render). To publish frontend changes free on [Cloudflare Pages](https://pages.cloudflare.com) (same account as D1, so one dashboard for both):
 
 ```
 npx wrangler pages deploy docs --project-name=salecast

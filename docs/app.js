@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE = "http://localhost:8000";
+const DEFAULT_API_BASE = "https://salecast-api.onrender.com";
 
 const apiBaseInput = document.getElementById("api-base");
 const apiBaseSaveBtn = document.getElementById("api-base-save");
