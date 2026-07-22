@@ -26,7 +26,7 @@ python scripts/run_discovery.py              # full run (~15-70 min)
 python scripts/run_backfill.py --limit 20    # smoke test
 python scripts/run_backfill.py               # full run
 
-# Scrape current prices for all tracked games (populates price_history daily)
+# Scrape current prices + a SteamSpy review-score snapshot for all tracked games (populates price_history daily)
 python scripts/run_daily_scrape.py --limit 20  # smoke test
 python scripts/run_daily_scrape.py             # full run
 

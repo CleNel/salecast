@@ -82,16 +82,43 @@ def test_scrape_game_inserts_price_row(monkeypatch):
         "get_app_details",
         lambda app_id, session=None: {"price": 9.99, "discount_pct": 50},
     )
+    monkeypatch.setattr(
+        scrape.steamspy_client,
+        "get_app_stats",
+        lambda app_id, session=None: {"review_count": 100, "review_score_pct": 87.5},
+    )
+    monkeypatch.setattr("time.sleep", lambda _: None)
 
     inserted = scrape.scrape_game(conn, 730)
 
     assert inserted == 1
     row = conn.execute(
-        "SELECT price, discount_pct, source FROM price_history WHERE app_id = 730"
+        "SELECT price, discount_pct, review_score_snapshot, source FROM price_history WHERE app_id = 730"
     ).fetchone()
     assert row["price"] == 9.99
     assert row["discount_pct"] == 50
+    assert row["review_score_snapshot"] == 87.5
     assert row["source"] == "daily_scrape"
+
+
+def test_scrape_game_stores_null_review_score_when_steamspy_has_no_data(monkeypatch):
+    conn = _make_conn_with_games([730])
+
+    monkeypatch.setattr(
+        scrape.steam_client,
+        "get_app_details",
+        lambda app_id, session=None: {"price": 9.99, "discount_pct": 50},
+    )
+    monkeypatch.setattr(scrape.steamspy_client, "get_app_stats", lambda app_id, session=None: None)
+    monkeypatch.setattr("time.sleep", lambda _: None)
+
+    inserted = scrape.scrape_game(conn, 730)
+
+    assert inserted == 1
+    row = conn.execute(
+        "SELECT review_score_snapshot FROM price_history WHERE app_id = 730"
+    ).fetchone()
+    assert row["review_score_snapshot"] is None
 
 
 def test_scrape_game_skips_unpriced_apps(monkeypatch):
@@ -100,6 +127,7 @@ def test_scrape_game_skips_unpriced_apps(monkeypatch):
     monkeypatch.setattr(
         scrape.steam_client, "get_app_details", lambda app_id, session=None: {"price": None}
     )
+    monkeypatch.setattr("time.sleep", lambda _: None)
 
     inserted = scrape.scrape_game(conn, 730)
 

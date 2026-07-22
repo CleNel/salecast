@@ -31,6 +31,12 @@ DISCOVERY_PROGRESS_INTERVAL = 50
 STEAM_APPDETAILS_DELAY_SEC = 1.5
 STEAMSPY_DELAY_SEC = 1.0
 
+# Daily scrape also fetches a SteamSpy review-score snapshot per game
+# (salecast/scrape.py), a second, more strictly rate-limited endpoint beyond
+# the bulk 'all' pages discovery uses - gets its own delay between the two
+# calls a single game's scrape makes (Steam appdetails, then SteamSpy).
+SCRAPE_INTRA_CALL_DELAY_SEC = 0.5
+
 # ITAD rate-limited hard in practice (429s observed well under its
 # documented 1000/5min), so backfill is deliberately slower than the
 # other clients: a longer delay between games, plus a delay between the

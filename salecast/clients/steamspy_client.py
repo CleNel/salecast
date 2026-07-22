@@ -40,6 +40,37 @@ def get_all_page(page: int, session: requests.Session | None = None) -> list[dic
     return list(payload.values())
 
 
+def get_app_stats(app_id: int, session: requests.Session | None = None) -> dict[str, Any] | None:
+    """Fetches SteamSpy's per-app stats for a single app_id (a separate,
+    more strictly rate-limited endpoint from the bulk 'all' pages used by
+    discovery). Returns {"review_count": int, "review_score_pct": float |
+    None} using the same positive/negative definition as
+    build_review_candidate_set, so a review-score trend built from this
+    stays comparable to the value discovery.py recorded at tracking time.
+    None if the request failed or SteamSpy has no record for this app."""
+    session = session or requests.Session()
+    response = get_with_backoff(
+        session, STEAMSPY_URL, params={"request": "appdetails", "appid": app_id}
+    )
+    if response is None:
+        return None
+    try:
+        payload = response.json()
+    except ValueError:
+        logger.warning("Non-JSON SteamSpy appdetails response for app %d", app_id)
+        return None
+    if not payload or not payload.get("name"):
+        return None
+
+    positive = payload.get("positive") or 0
+    negative = payload.get("negative") or 0
+    reviews = positive + negative
+    return {
+        "review_count": reviews,
+        "review_score_pct": round(100 * positive / reviews, 1) if reviews else None,
+    }
+
+
 def iter_all_apps(
     delay_sec: float = 1.0, max_pages: int = 150, retries_per_page: int = 5
 ) -> Iterator[dict[str, Any]]:
