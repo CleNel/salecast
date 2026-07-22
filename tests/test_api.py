@@ -80,6 +80,45 @@ def test_get_game_404_for_untracked_app(client):
     assert response.status_code == 404
 
 
+def test_search_returns_matches_ordered_by_review_count(client, conn):
+    conn.execute(
+        """
+        INSERT INTO tracked_games
+            (app_id, name, genre, publisher, release_date, review_count,
+             review_score_pct, first_tracked_date)
+        VALUES (10, 'Counter-Strike', 'Action', 'Valve', '2000-11-01', 100, 95.0, '2026-01-01')
+        """
+    )
+    conn.commit()
+
+    response = client.get("/search", params={"q": "counter"})
+
+    assert response.status_code == 200
+    names = [row["name"] for row in response.json()]
+    assert names == ["Counter-Strike 2", "Counter-Strike"]  # 500000 reviews > 100
+
+
+def test_search_is_case_insensitive(client):
+    response = client.get("/search", params={"q": "COUNTER-strike"})
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+
+def test_search_returns_empty_list_for_short_queries(client):
+    response = client.get("/search", params={"q": "c"})
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_search_returns_empty_list_for_no_matches(client):
+    response = client.get("/search", params={"q": "nonexistent game xyz"})
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
 def test_get_game_handles_missing_derived_data(client, conn):
     # A game with no cluster/smart-buy/deal-score rows yet (e.g. just discovered)
     conn.execute(

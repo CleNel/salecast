@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SaleCast — Steam Smart Buy</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <h1>SaleCast</h1>
+      <p class="subtitle">Search a Steam game to see its discounting cluster, smart-buy odds, and deal score.</p>
+    </header>
+
+    <section class="search">
+      <input id="search-input" type="text" placeholder="Search a game (e.g. Counter-Strike)" autocomplete="off" />
+      <ul id="results" class="results"></ul>
+    </section>
+
+    <section id="game-panel" class="game-panel hidden"></section>
+
+    <footer>
+      <details>
+        <summary>API settings</summary>
+        <label for="api-base">API base URL</label>
+        <input id="api-base" type="text" />
+        <button id="api-base-save">Save</button>
+        <p class="hint">Defaults to a local API at <code>http://localhost:8000</code> (run <code>uvicorn salecast.api:app --reload</code>). Point this at your deployed Render URL once it's live.</p>
+      </details>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

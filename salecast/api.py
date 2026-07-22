@@ -34,6 +34,19 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/search")
+def search_games(q: str = "", conn=Depends(get_connection)):
+    q = q.strip()
+    if len(q) < 2:
+        return []
+
+    rows = conn.execute(
+        "SELECT app_id, name FROM tracked_games WHERE name LIKE ? ORDER BY review_count DESC LIMIT 20",
+        (f"%{q}%",),
+    ).fetchall()
+    return [{"app_id": row["app_id"], "name": row["name"]} for row in rows]
+
+
 @app.get("/game/{app_id}")
 def get_game(app_id: int, conn=Depends(get_connection)):
     game = conn.execute("SELECT * FROM tracked_games WHERE app_id = ?", (app_id,)).fetchone()

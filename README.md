@@ -1,8 +1,26 @@
 # SaleCast (Steam Smart Buy)
 
-ML system that clusters Steam games by discounting behavior, predicts the probability a game hits a target discount, and combines both into a deal-quality score. See `steam-smart-buy-plan.md` for the full project spec.
+ML system that clusters Steam games by discounting behavior, predicts the probability a game hits a target discount, and combines both into a deal-quality score. See `steam-smart-buy-plan.md` for the full project spec and its scope-decision rationale.
 
-This repo currently implements **Week 1: data foundation** — discovering a curated set of ~500-1000 qualifying games and backfilling historical price data — plus **Week 2: automation**, a Cloudflare D1 database and scheduled GitHub Actions jobs that keep it live — plus **Week 3: clustering**, grouping games by discounting behavior (how deep, how often, how it trends over time) via K-means — plus **Week 4: smart-buy model**, predicting the probability a game hits a target discount within N days — plus **Week 5: deal scorer + API**, a composite 0-100 "how good is this deal" score and a small FastAPI service to look games up.
+This repo implements the full 6-week plan:
+
+- **Week 1: data foundation** — discovers a curated set of ~500-1000 qualifying games and backfills their historical price data.
+- **Week 2: automation** — a Cloudflare D1 database and scheduled GitHub Actions jobs keep it live (daily price scrape, weekly discovery).
+- **Week 3: clustering** — groups games by discounting behavior (how deep, how often, how it trends over time) via K-means.
+- **Week 4: smart-buy model** — predicts the probability a game hits a target discount within N days.
+- **Week 5: deal scorer + API** — a composite 0-100 "how good is this deal" score, exposed via a small FastAPI service.
+- **Week 6: frontend + polish** — a minimal static search page (`docs/`, deployable free on GitHub Pages) and a monthly GitHub Actions job that keeps clustering/smart-buy/deal-score current.
+
+## Design decisions worth knowing about
+
+The scope decisions behind the overall project (why ~500-1000 games not the full library, why tiered update frequencies, why a hand-tuned composite score first) are in `steam-smart-buy-plan.md`'s "Scope decisions" table. A few more came up during implementation, each because something in the real data forced the issue:
+
+- **Clustering excludes a k that isolates a single outlier as its own cluster** (`MIN_CLUSTER_SIZE` in `salecast/clustering.py`) — raw silhouette score alone picked k=5 on the real dataset because one game's extreme discount-depth trend split off by itself, which isn't a useful "cluster."
+- **The smart-buy model takes target_discount/horizon_days as features, not three separate models** — you asked for all three discount/timeframe scenarios to be considered, so one classifier generalizes across them instead of tripling the training/maintenance burden.
+- **Review confidence uses a Wilson score interval, not the raw percentage** (`salecast/deal_score.py`) — otherwise 5 perfect reviews would outrank 50,000 reviews at 95% positive.
+- **Average playtime was dropped from the deal score** despite being in the original plan — SteamSpy's only free source for it (`average_forever`) returns 0 for every real game tested; it's not silently faked.
+- **D1 writes are batched into one HTTP call per game/scenario** (`D1Connection.execute_batch`) — the full backfill was taking ~27s/game with one round-trip per row; Cloudflare's `{"batch": [...]}` endpoint cut that down by roughly an order of magnitude.
+- **Train/test splits are done by game, not by row** (`GroupShuffleSplit` in `salecast/smart_buy.py`) — a row-level split would let a game's own history leak between train and test, overstating how well the model generalizes to games it's never seen.
 
 ## Setup
 
@@ -87,14 +105,30 @@ Set `SALECAST_TARGET=d1` (default) or `SALECAST_TARGET=sqlite` with `SALECAST_DB
 
 `render.yaml` deploys it free on [Render](https://render.com): connect this repo as a Blueprint, then set `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_D1_DATABASE_ID`, and `CLOUDFLARE_API_TOKEN` in Render's dashboard (left out of `render.yaml` itself so secrets never enter git).
 
+## Frontend
+
+`docs/` is a minimal static page (no build step - plain HTML/CSS/JS) that searches tracked games by name and shows their cluster, smart-buy probabilities, and deal score. It's a thin client for the API above; it holds no data of its own.
+
+To run it locally:
+
+```
+uvicorn salecast.api:app --reload   # in one terminal
+cd docs && python -m http.server 8080   # in another
+```
+
+Then open `http://localhost:8080`, expand "API settings", and point it at `http://localhost:8000` (uvicorn's default port) if you didn't run the API on 8080 already.
+
+To publish it free on GitHub Pages: repo Settings > Pages > set source to the `main` branch, `/docs` folder. Once deployed, open the page's "API settings" and point `API base URL` at wherever `salecast/api.py` ends up running (e.g. the Render URL from the API section above) - it's a plain input persisted in the browser's local storage, not a build-time config, so this works without rebuilding or redeploying anything.
+
 ## Scheduled jobs
 
-Two GitHub Actions workflows keep the D1 database live, both targeting `--target d1`:
+Three GitHub Actions workflows keep the D1 database live, all targeting `--target d1`:
 
 - **`.github/workflows/daily-scrape.yml`** — runs `run_daily_scrape.py` every day at 06:00 UTC.
 - **`.github/workflows/weekly-discovery.yml`** — runs `run_discovery.py` then `run_backfill.py` every Monday at 05:00 UTC, so newly-qualifying games get picked up and their full Steam price history backfilled (both scripts are idempotent, so this only does work for genuinely new games).
+- **`.github/workflows/monthly-retrain.yml`** — runs `run_clustering.py`, `run_smart_buy.py`, then `run_deal_score.py` on the 1st of each month at 04:00 UTC, per the plan's "discounting personality changes slowly, retraining daily would just add compute cost for no real change" reasoning (see `steam-smart-buy-plan.md`).
 
-Both are also triggerable manually from the Actions tab (`workflow_dispatch`), with an optional `limit` input for a smoke test.
+All three are also triggerable manually from the Actions tab (`workflow_dispatch`); the daily/weekly ones take an optional `limit` input for a smoke test.
 
 Set these as repo secrets (Settings > Secrets and variables > Actions) for the workflows to authenticate:
 
