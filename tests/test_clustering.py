@@ -67,8 +67,15 @@ class _FakeD1Conn:
         return len(statements)
 
 
+def _labeled_fixture(app_ids, cluster_ids):
+    data = {"app_id": app_ids, "cluster_id": cluster_ids}
+    for i, column in enumerate(FEATURE_COLUMNS):
+        data[column] = [10.0 * i + j for j in range(len(app_ids))]
+    return pd.DataFrame(data)
+
+
 def test_write_cluster_labels_uses_execute_batch_when_available():
-    labeled = pd.DataFrame({"app_id": [1, 2], "cluster_id": [0, 1]})
+    labeled = _labeled_fixture([1, 2], [0, 1])
     conn = _FakeD1Conn()
 
     changed = write_cluster_labels(conn, labeled, "2026-07-22T00:00:00Z")
@@ -87,12 +94,15 @@ def test_write_cluster_labels_falls_back_to_execute_loop():
     )
     conn.commit()
 
-    labeled = pd.DataFrame({"app_id": [1], "cluster_id": [0]})
+    labeled = _labeled_fixture([1], [0])
     changed = write_cluster_labels(conn, labeled, "2026-07-22T00:00:00Z")
 
     assert changed == 1
-    row = conn.execute("SELECT cluster_id FROM cluster_labels WHERE app_id = 1").fetchone()
+    row = conn.execute(
+        "SELECT cluster_id, avg_discount_depth FROM cluster_labels WHERE app_id = 1"
+    ).fetchone()
     assert row["cluster_id"] == 0
+    assert row["avg_discount_depth"] == 0.0
 
 
 def test_write_cluster_labels_upserts_on_conflict():
@@ -104,8 +114,8 @@ def test_write_cluster_labels_upserts_on_conflict():
     )
     conn.commit()
 
-    write_cluster_labels(conn, pd.DataFrame({"app_id": [1], "cluster_id": [0]}), "2026-01-01T00:00:00Z")
-    write_cluster_labels(conn, pd.DataFrame({"app_id": [1], "cluster_id": [2]}), "2026-07-22T00:00:00Z")
+    write_cluster_labels(conn, _labeled_fixture([1], [0]), "2026-01-01T00:00:00Z")
+    write_cluster_labels(conn, _labeled_fixture([1], [2]), "2026-07-22T00:00:00Z")
 
     rows = conn.execute("SELECT cluster_id, last_updated FROM cluster_labels").fetchall()
     assert len(rows) == 1

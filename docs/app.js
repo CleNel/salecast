@@ -89,25 +89,10 @@ function renderGame(game) {
       ? "not enough discount history to cluster yet"
       : `cluster ${game.cluster_id}`;
 
-  const smartBuyRows = game.is_free
-    ? `<tr><td colspan="3" class="empty-state">This game is free to play - no discount to track</td></tr>`
-    : game.smart_buy_probabilities.length
-      ? game.smart_buy_probabilities
-          .map(
-            (row) => `
-        <tr>
-          <td>${row.target_discount}% off</td>
-          <td>within ${row.horizon_days} days</td>
-          <td>${Math.round(row.probability * 100)}%</td>
-        </tr>`
-          )
-          .join("")
-      : `<tr><td colspan="3" class="empty-state">No smart-buy scores yet</td></tr>`;
-
-  // Numbers above are all formatted server-side-controlled values, safe to
-  // interpolate; anything sourced from the game's name/genre/publisher is
-  // set via textContent below instead, since Steam game names are
-  // arbitrary strings this app doesn't control.
+  // Numbers interpolated below (target_discount, horizon_days, etc.) are all
+  // server-controlled values, safe to inline; anything sourced from the
+  // game's name/genre/publisher is set via textContent instead, since Steam
+  // game names are arbitrary strings this app doesn't control.
   gamePanel.innerHTML = `
     <h2 id="game-name"></h2>
     <p class="game-meta" id="game-meta"></p>
@@ -118,10 +103,30 @@ function renderGame(game) {
         <div class="price-line" id="price-line"></div>
       </div>
     </div>
-    <table>
-      <thead><tr><th>Target</th><th>Horizon</th><th>Probability</th></tr></thead>
-      <tbody>${smartBuyRows}</tbody>
-    </table>
+
+    <div class="explain-section">
+      <h3>Price &amp; discount history</h3>
+      <p class="explain-hint">The actual data behind every chart below.</p>
+      <div class="chart-container" id="history-chart"><p class="empty-state">Loading…</p></div>
+    </div>
+
+    <div class="explain-section">
+      <h3>What makes up the deal score</h3>
+      <p class="explain-hint">Three weighted signals, summing to the score above.</p>
+      <div class="chart-container" id="deal-score-chart"></div>
+    </div>
+
+    <div class="explain-section">
+      <h3>Smart-buy odds</h3>
+      <p class="explain-hint">Probability of hitting each discount within its time window.</p>
+      <div class="chart-container" id="smart-buy-chart"></div>
+    </div>
+
+    <div class="explain-section">
+      <h3>How this compares to its cluster</h3>
+      <p class="explain-hint">This game's discount behavior vs. its cluster's average.</p>
+      <div class="chart-container" id="cluster-chart"></div>
+    </div>
   `;
 
   document.getElementById("game-name").textContent = game.name;
@@ -142,6 +147,81 @@ function renderGame(game) {
       priceLineEl.appendChild(discountSpan);
     }
   }
+
+  renderDealScoreChart(game);
+  renderSmartBuyChart(game);
+  renderClusterChart(game);
+}
+
+function renderDealScoreChart(game) {
+  const container = document.getElementById("deal-score-chart");
+  if (game.is_free) {
+    container.innerHTML = '<p class="empty-state">Free to play - no deal score to break down</p>';
+    return;
+  }
+  if (!game.deal_score_breakdown || game.deal_score_breakdown.length === 0) {
+    container.innerHTML = '<p class="empty-state">No deal score computed yet</p>';
+    return;
+  }
+  renderStackedBarChart(
+    container,
+    game.deal_score_breakdown.map((row) => ({ label: row.label, value: row.contribution }))
+  );
+}
+
+function renderSmartBuyChart(game) {
+  const container = document.getElementById("smart-buy-chart");
+  if (game.is_free) {
+    container.innerHTML = '<p class="empty-state">This game is free to play - no discount to track</p>';
+    return;
+  }
+  renderProbabilityBars(
+    container,
+    game.smart_buy_probabilities.map((row) => ({
+      label: `${row.target_discount}% off / ${row.horizon_days}d`,
+      value: row.probability * 100,
+    }))
+  );
+}
+
+function renderClusterChart(game) {
+  const container = document.getElementById("cluster-chart");
+  if (game.is_free) {
+    container.innerHTML = '<p class="empty-state">Free-to-play games aren\'t clustered</p>';
+    return;
+  }
+  const comparison = game.cluster_comparison;
+  if (!comparison) {
+    container.innerHTML = '<p class="empty-state">Not enough discount history to cluster yet</p>';
+    return;
+  }
+  const rows = comparison.features
+    .filter((f) => f.cluster_average !== null && f.cluster_average !== 0)
+    .map((f) => ({
+      label: f.label,
+      pctDiff: ((f.value - f.cluster_average) / Math.abs(f.cluster_average)) * 100,
+    }));
+  renderDivergingBars(container, rows);
+}
+
+async function loadGameHistory(appId) {
+  const container = document.getElementById("history-chart");
+  try {
+    const response = await fetch(`${getApiBase()}/game/${appId}/history`);
+    if (!response.ok) throw new Error(`status ${response.status}`);
+    const rows = await response.json();
+    if (document.getElementById("history-chart")) {
+      renderPriceHistoryChart(container, rows);
+    }
+  } catch (err) {
+    if (container) {
+      container.innerHTML = "";
+      const message = document.createElement("p");
+      message.className = "empty-state";
+      message.textContent = "Couldn't load price history.";
+      container.appendChild(message);
+    }
+  }
 }
 
 async function loadGame(appId) {
@@ -150,7 +230,9 @@ async function loadGame(appId) {
   try {
     const response = await fetch(`${getApiBase()}/game/${appId}`);
     if (!response.ok) throw new Error(`status ${response.status}`);
-    renderGame(await response.json());
+    const game = await response.json();
+    renderGame(game);
+    loadGameHistory(appId);
   } catch (err) {
     gamePanel.classList.remove("hidden");
     gamePanel.innerHTML = "";

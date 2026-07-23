@@ -53,14 +53,24 @@ def _load_tables(conn) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Dat
 
 def write_deal_scores(conn, scores: pd.DataFrame, timestamp: str) -> int:
     upsert_sql = """
-        INSERT INTO deal_scores (app_id, composite_score, last_updated)
-        VALUES (?, ?, ?)
+        INSERT INTO deal_scores
+            (app_id, composite_score, discount_ratio, smart_buy_probability, review_confidence, last_updated)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(app_id) DO UPDATE SET
             composite_score = excluded.composite_score,
+            discount_ratio = excluded.discount_ratio,
+            smart_buy_probability = excluded.smart_buy_probability,
+            review_confidence = excluded.review_confidence,
             last_updated = excluded.last_updated
     """
     statements = [
-        (upsert_sql, (int(row.app_id), float(row.deal_score), timestamp))
+        (
+            upsert_sql,
+            (
+                int(row.app_id), float(row.deal_score), float(row.discount_ratio),
+                float(row.smart_buy_probability), float(row.review_confidence), timestamp,
+            ),
+        )
         for row in scores.itertuples()
     ]
 

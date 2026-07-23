@@ -5,6 +5,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from salecast import config, db
 from salecast.clients.d1_client import D1Connection
+from salecast.deal_score import WEIGHTS as DEAL_SCORE_WEIGHTS
+
+CLUSTER_FEATURE_LABELS = {
+    "avg_discount_depth": "Average discount depth",
+    "discount_depth_std": "Discount depth variance",
+    "discount_frequency_per_year": "Discounts per year",
+    "time_to_first_discount_days": "Days to first discount",
+    "discount_depth_trend": "Discount trend (pct/yr)",
+}
 
 app = FastAPI(title="SaleCast API", description="Steam deal-quality lookups")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"])
@@ -58,7 +67,11 @@ def get_game(app_id: int, conn=Depends(get_connection)):
         (app_id,),
     ).fetchone()
     cluster = conn.execute(
-        "SELECT cluster_id FROM cluster_labels WHERE app_id = ?", (app_id,)
+        f"""
+        SELECT cluster_id, {", ".join(CLUSTER_FEATURE_LABELS)}
+        FROM cluster_labels WHERE app_id = ?
+        """,
+        (app_id,),
     ).fetchone()
     smart_buy_rows = conn.execute(
         """
@@ -68,7 +81,11 @@ def get_game(app_id: int, conn=Depends(get_connection)):
         (app_id,),
     ).fetchall()
     deal = conn.execute(
-        "SELECT composite_score FROM deal_scores WHERE app_id = ?", (app_id,)
+        """
+        SELECT composite_score, discount_ratio, smart_buy_probability, review_confidence
+        FROM deal_scores WHERE app_id = ?
+        """,
+        (app_id,),
     ).fetchone()
 
     return {
@@ -90,4 +107,80 @@ def get_game(app_id: int, conn=Depends(get_connection)):
             }
             for row in smart_buy_rows
         ],
+        "deal_score_breakdown": _deal_score_breakdown(deal),
+        "cluster_comparison": _cluster_comparison(conn, cluster),
     }
+
+
+def _deal_score_breakdown(deal) -> list[dict] | None:
+    """The three weighted contributions that sum to deal_score, pre-multiplied
+    by their weight and scaled to 0-100 so the frontend just renders bars -
+    the formula lives here, once, rather than being re-derived client-side."""
+    if deal is None or deal["discount_ratio"] is None:
+        return None
+    return [
+        {
+            "component": "discount_ratio",
+            "label": "Discount depth vs. own history",
+            "contribution": round(100 * DEAL_SCORE_WEIGHTS["discount_ratio"] * deal["discount_ratio"], 1),
+        },
+        {
+            "component": "smart_buy_probability",
+            "label": "Smart-buy odds",
+            "contribution": round(
+                100 * DEAL_SCORE_WEIGHTS["smart_buy_probability"] * deal["smart_buy_probability"], 1
+            ),
+        },
+        {
+            "component": "review_confidence",
+            "label": "Review confidence",
+            "contribution": round(
+                100 * DEAL_SCORE_WEIGHTS["review_confidence"] * deal["review_confidence"], 1
+            ),
+        },
+    ]
+
+
+def _cluster_comparison(conn, cluster) -> dict | None:
+    """This game's own clustering-feature values next to its cluster's
+    average for the same features - why it landed in that group, not just
+    which group. None if the game hasn't been clustered (see
+    salecast/features.py MIN_DISCOUNT_EVENTS)."""
+    if cluster is None or cluster["cluster_id"] is None:
+        return None
+
+    columns = ", ".join(f"AVG({c}) AS {c}" for c in CLUSTER_FEATURE_LABELS)
+    peers = conn.execute(
+        f"SELECT {columns}, COUNT(*) AS n FROM cluster_labels WHERE cluster_id = ?",
+        (cluster["cluster_id"],),
+    ).fetchone()
+
+    return {
+        "cluster_id": cluster["cluster_id"],
+        "peer_count": peers["n"],
+        "features": [
+            {
+                "feature": key,
+                "label": label,
+                "value": cluster[key],
+                "cluster_average": peers[key],
+            }
+            for key, label in CLUSTER_FEATURE_LABELS.items()
+        ],
+    }
+
+
+@app.get("/game/{app_id}/history")
+def get_game_history(app_id: int, conn=Depends(get_connection)):
+    game = conn.execute("SELECT app_id FROM tracked_games WHERE app_id = ?", (app_id,)).fetchone()
+    if game is None:
+        raise HTTPException(status_code=404, detail=f"app_id {app_id} is not tracked")
+
+    rows = conn.execute(
+        "SELECT date, price, discount_pct FROM price_history WHERE app_id = ? ORDER BY date",
+        (app_id,),
+    ).fetchall()
+    return [
+        {"date": row["date"], "price": row["price"], "discount_pct": row["discount_pct"]}
+        for row in rows
+    ]

@@ -59,18 +59,27 @@ def cluster_games(
 
 
 def write_cluster_labels(conn: Any, labeled: pd.DataFrame, timestamp: str) -> int:
-    """Upserts one (app_id, cluster_id, last_updated) row per labeled game
-    into cluster_labels. Uses D1Connection.execute_batch() when available
-    (a single HTTP round-trip) instead of looping execute() per row."""
-    upsert_sql = """
-        INSERT INTO cluster_labels (app_id, cluster_id, last_updated)
-        VALUES (?, ?, ?)
+    """Upserts one row per labeled game into cluster_labels - cluster_id
+    plus its own FEATURE_COLUMNS values (not just the cluster assignment),
+    so the API can later show a game's numbers next to its cluster's
+    average. Uses D1Connection.execute_batch() when available (a single
+    HTTP round-trip) instead of looping execute() per row."""
+    upsert_sql = f"""
+        INSERT INTO cluster_labels
+            (app_id, cluster_id, {", ".join(FEATURE_COLUMNS)}, last_updated)
+        VALUES (?, ?, {", ".join(["?"] * len(FEATURE_COLUMNS))}, ?)
         ON CONFLICT(app_id) DO UPDATE SET
             cluster_id = excluded.cluster_id,
+            {", ".join(f"{c} = excluded.{c}" for c in FEATURE_COLUMNS)},
             last_updated = excluded.last_updated
     """
     statements = [
-        (upsert_sql, (int(row.app_id), int(row.cluster_id), timestamp))
+        (
+            upsert_sql,
+            (int(row.app_id), int(row.cluster_id))
+            + tuple(float(getattr(row, c)) for c in FEATURE_COLUMNS)
+            + (timestamp,),
+        )
         for row in labeled.itertuples()
     ]
 

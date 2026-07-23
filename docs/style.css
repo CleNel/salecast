@@ -9,6 +9,18 @@
   --good: #1f9d55;
   --mid: #c98a12;
   --bad: #d1453b;
+  /* Chart palette (see dataviz skill's validated reference palette) -
+     categorical slots for identity (part-to-whole breakdown), a
+     diverging pair for above/below a baseline, and chart-specific chrome
+     kept separate from the --good/--mid/--bad score bands above so a
+     breakdown chart's colors are never confused with the score's. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --diverging-pos: #2a78d6;
+  --diverging-neg: #e34948;
+  --gridline: #e1e0d9;
+  --axis-muted: #898781;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,6 +34,13 @@
     --good: #3ec37a;
     --mid: #e0a934;
     --bad: #e2685f;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --diverging-pos: #3987e5;
+    --diverging-neg: #e66767;
+    --gridline: #2c2c2a;
+    --axis-muted: #898781;
   }
 }
 
@@ -212,4 +231,179 @@ code {
   background: var(--bg);
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
+}
+
+/* Explainability charts */
+
+.explain-section {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.explain-section h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.15rem;
+}
+
+.explain-section .explain-hint {
+  margin: 0 0 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.chart-container {
+  position: relative;
+}
+
+.chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.chart-axis-label {
+  font-size: 9px;
+}
+
+.chart-tooltip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  background: var(--text);
+  color: var(--bg);
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  max-width: 200px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.chart-tooltip strong {
+  display: block;
+  font-weight: 600;
+}
+
+/* Deal score breakdown (stacked bar) */
+
+.stacked-bar {
+  display: flex;
+  height: 22px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--border);
+  gap: 2px;
+}
+
+.stacked-bar-segment {
+  height: 100%;
+  min-width: 2px;
+  cursor: default;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.chart-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Smart-buy probability bars */
+
+.bar-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 9rem 1fr 2.5rem;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+}
+
+.bar-row-label {
+  color: var(--text-muted);
+}
+
+.bar-row-track {
+  height: 14px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bar-row-fill {
+  height: 100%;
+  border-radius: 4px;
+}
+
+.bar-row-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cluster peer comparison (diverging bars) */
+
+.diverging-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.diverging-row {
+  display: grid;
+  grid-template-columns: 9rem 1fr 3.2rem;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+}
+
+.diverging-row-label {
+  color: var(--text-muted);
+}
+
+.diverging-row-track {
+  position: relative;
+  height: 14px;
+}
+
+.diverging-row-center {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--axis-muted);
+}
+
+.diverging-row-bar {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 3px;
+}
+
+.diverging-row-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }

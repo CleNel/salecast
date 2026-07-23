@@ -29,6 +29,13 @@ def init_schema(conn) -> None:
                 conn.execute(statement)
 
     _add_column_if_missing(conn, "tracked_games", "is_free", "INTEGER NOT NULL DEFAULT 0")
+    for column in (
+        "avg_discount_depth", "discount_depth_std", "discount_frequency_per_year",
+        "time_to_first_discount_days", "discount_depth_trend",
+    ):
+        _add_column_if_missing(conn, "cluster_labels", column, "REAL")
+    for column in ("discount_ratio", "smart_buy_probability", "review_confidence"):
+        _add_column_if_missing(conn, "deal_scores", column, "REAL")
 
 
 def _add_column_if_missing(conn, table: str, column: str, ddl: str) -> None:

@@ -95,7 +95,11 @@ Default thresholds (min review count, min age since release, target tracked-game
 
 ## API
 
-`salecast/api.py` is a small FastAPI service: `GET /game/{app_id}` returns the game's cluster, all three smart-buy probabilities, and its deal score.
+`salecast/api.py` is a small FastAPI service:
+
+- `GET /game/{app_id}` returns the game's cluster, all three smart-buy probabilities, its deal score, a `deal_score_breakdown` (the three weighted contributions that sum to it), and a `cluster_comparison` (this game's own discount-behavior features next to its cluster's average - why it landed there, not just which cluster).
+- `GET /game/{app_id}/history` returns its full price/discount time series, for the frontend's history chart.
+- `GET /search?q=` and `GET /health` as before.
 
 ```
 uvicorn salecast.api:app --reload
@@ -107,7 +111,7 @@ Set `SALECAST_TARGET=d1` (default) or `SALECAST_TARGET=sqlite` with `SALECAST_DB
 
 ## Frontend
 
-`docs/` is a minimal static page (no build step - plain HTML/CSS/JS) that searches tracked games by name and shows their cluster, smart-buy probabilities, and deal score. It's a thin client for the API above; it holds no data of its own.
+`docs/` is a minimal static page (no build step - plain HTML/CSS/JS) that searches tracked games by name and shows their cluster, smart-buy probabilities, and deal score - plus four charts (`docs/charts.js`) explaining *why*: a price/discount history line, a stacked bar breaking the deal score into its three weighted signals, the smart-buy probabilities as bars, and a diverging-bar comparison of this game's discount behavior against its cluster's average. It's a thin client for the API above; it holds no data of its own.
 
 To run it locally:
 

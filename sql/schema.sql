@@ -24,10 +24,19 @@ CREATE TABLE IF NOT EXISTS price_history (
   UNIQUE (app_id, date, source)
 );
 
+-- The discount-behavior feature columns duplicate salecast/features.py's
+-- FEATURE_COLUMNS, persisted per game (not just the cluster_id) so the API
+-- can show a game's own numbers next to its cluster's average - "why did
+-- this land in this cluster" (see GET /game/{app_id}).
 CREATE TABLE IF NOT EXISTS cluster_labels (
-  app_id       INTEGER PRIMARY KEY REFERENCES tracked_games(app_id),
-  cluster_id   INTEGER,
-  last_updated TEXT
+  app_id                       INTEGER PRIMARY KEY REFERENCES tracked_games(app_id),
+  cluster_id                   INTEGER,
+  avg_discount_depth           REAL,
+  discount_depth_std           REAL,
+  discount_frequency_per_year  REAL,
+  time_to_first_discount_days  REAL,
+  discount_depth_trend         REAL,
+  last_updated                 TEXT
 );
 
 -- One row per (game, "hits X% off within Y days") scenario - a single game
@@ -42,10 +51,17 @@ CREATE TABLE IF NOT EXISTS smart_buy_scores (
   PRIMARY KEY (app_id, target_discount, horizon_days)
 );
 
+-- discount_ratio/smart_buy_probability/review_confidence are the three
+-- weighted inputs that sum to composite_score (see salecast/deal_score.py
+-- WEIGHTS) - stored individually so the API can show the breakdown, not
+-- just the final number.
 CREATE TABLE IF NOT EXISTS deal_scores (
-  app_id          INTEGER PRIMARY KEY REFERENCES tracked_games(app_id),
-  composite_score REAL,
-  last_updated    TEXT
+  app_id               INTEGER PRIMARY KEY REFERENCES tracked_games(app_id),
+  composite_score      REAL,
+  discount_ratio       REAL,
+  smart_buy_probability REAL,
+  review_confidence    REAL,
+  last_updated         TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_price_history_app_date ON price_history(app_id, date);
