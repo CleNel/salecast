@@ -32,7 +32,7 @@ def main() -> None:
         conn = D1Connection()
     else:
         conn = db.get_connection(config.DB_PATH)
-        db.init_schema(conn)
+    db.init_schema(conn)
 
     start = time.time()
     discovery.main(

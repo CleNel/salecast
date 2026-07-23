@@ -30,7 +30,7 @@ def main() -> None:
         conn = D1Connection()
     else:
         conn = db.get_connection(config.DB_PATH)
-        db.init_schema(conn)
+    db.init_schema(conn)
 
     try:
         backfill.main(conn, limit=args.limit)
