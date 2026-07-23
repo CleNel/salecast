@@ -276,6 +276,13 @@ header h1 {
   margin-left: 0.5rem;
 }
 
+.price-line .original-price {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  font-size: 0.9rem;
+  margin-right: 0.4rem;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -375,6 +382,42 @@ code {
   position: relative;
 }
 
+.score-component-descriptions {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.score-component-descriptions li {
+  margin-top: 0.35rem;
+}
+
+.score-component-descriptions strong {
+  color: var(--text);
+}
+
+.discount-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.discount-summary-stat {
+  min-width: 8rem;
+}
+
+.discount-summary-stat .stat-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.discount-summary-stat .stat-label {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
 .chart-svg {
   width: 100%;
   height: auto;
@@ -444,85 +487,3 @@ code {
   flex-shrink: 0;
 }
 
-/* Smart-buy probability bars */
-
-.bar-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.bar-row {
-  display: grid;
-  grid-template-columns: 9rem 1fr 2.5rem;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 0.82rem;
-}
-
-.bar-row-label {
-  color: var(--text-muted);
-}
-
-.bar-row-track {
-  height: 14px;
-  background: var(--border);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.bar-row-fill {
-  height: 100%;
-  border-radius: 4px;
-}
-
-.bar-row-value {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Cluster peer comparison (diverging bars) */
-
-.diverging-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.diverging-row {
-  display: grid;
-  grid-template-columns: 9rem 1fr 3.2rem;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 0.82rem;
-}
-
-.diverging-row-label {
-  color: var(--text-muted);
-}
-
-.diverging-row-track {
-  position: relative;
-  height: 14px;
-}
-
-.diverging-row-center {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--axis-muted);
-}
-
-.diverging-row-bar {
-  position: absolute;
-  top: 2px;
-  bottom: 2px;
-  border-radius: 3px;
-}
-
-.diverging-row-value {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}

@@ -7,14 +7,6 @@ from salecast import config, db
 from salecast.clients.d1_client import D1Connection
 from salecast.deal_score import WEIGHTS as DEAL_SCORE_WEIGHTS
 
-CLUSTER_FEATURE_LABELS = {
-    "avg_discount_depth": "Average discount depth",
-    "discount_depth_std": "Discount depth variance",
-    "discount_frequency_per_year": "Discounts per year",
-    "time_to_first_discount_days": "Days to first discount",
-    "discount_depth_trend": "Discount trend (pct/yr)",
-}
-
 app = FastAPI(title="SaleCast API", description="Steam deal-quality lookups")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"])
 
@@ -67,19 +59,10 @@ def get_game(app_id: int, conn=Depends(get_connection)):
         (app_id,),
     ).fetchone()
     cluster = conn.execute(
-        f"""
-        SELECT cluster_id, {", ".join(CLUSTER_FEATURE_LABELS)}
-        FROM cluster_labels WHERE app_id = ?
-        """,
+        "SELECT cluster_id, avg_discount_depth, discount_frequency_per_year "
+        "FROM cluster_labels WHERE app_id = ?",
         (app_id,),
     ).fetchone()
-    smart_buy_rows = conn.execute(
-        """
-        SELECT target_discount, horizon_days, probability FROM smart_buy_scores
-        WHERE app_id = ? ORDER BY target_discount, horizon_days
-        """,
-        (app_id,),
-    ).fetchall()
     deal = conn.execute(
         """
         SELECT composite_score, discount_ratio, smart_buy_probability, review_confidence
@@ -87,28 +70,21 @@ def get_game(app_id: int, conn=Depends(get_connection)):
         """,
         (app_id,),
     ).fetchone()
+    is_free = bool(game["is_free"])
 
     return {
         "app_id": app_id,
         "name": game["name"],
         "genre": game["genre"],
         "publisher": game["publisher"],
-        "is_free": bool(game["is_free"]),
+        "is_free": is_free,
         "current_price": latest_price["price"] if latest_price else None,
         "current_discount_pct": latest_price["discount_pct"] if latest_price else None,
         "price_as_of": latest_price["date"] if latest_price else None,
         "cluster_id": cluster["cluster_id"] if cluster else None,
         "deal_score": deal["composite_score"] if deal else None,
-        "smart_buy_probabilities": [
-            {
-                "target_discount": row["target_discount"],
-                "horizon_days": row["horizon_days"],
-                "probability": row["probability"],
-            }
-            for row in smart_buy_rows
-        ],
         "deal_score_breakdown": _deal_score_breakdown(deal),
-        "cluster_comparison": _cluster_comparison(conn, cluster),
+        "discount_summary": None if is_free else _discount_summary(conn, app_id, cluster),
     }
 
 
@@ -141,32 +117,26 @@ def _deal_score_breakdown(deal) -> list[dict] | None:
     ]
 
 
-def _cluster_comparison(conn, cluster) -> dict | None:
-    """This game's own clustering-feature values next to its cluster's
-    average for the same features - why it landed in that group, not just
-    which group. None if the game hasn't been clustered (see
-    salecast/features.py MIN_DISCOUNT_EVENTS)."""
-    if cluster is None or cluster["cluster_id"] is None:
+def _discount_summary(conn, app_id: int, cluster) -> dict | None:
+    """Plain-language discount history for this specific game - how deep
+    it's ever gone, how often it goes on sale - in place of the old
+    probability-bars and cluster-comparison charts, which required
+    interpreting a model's output or a 5-feature diff rather than just
+    reading a fact. None if there's no price history at all yet."""
+    best = conn.execute(
+        "SELECT price, discount_pct, date FROM price_history WHERE app_id = ? "
+        "ORDER BY discount_pct DESC, price ASC LIMIT 1",
+        (app_id,),
+    ).fetchone()
+    if best is None:
         return None
 
-    columns = ", ".join(f"AVG({c}) AS {c}" for c in CLUSTER_FEATURE_LABELS)
-    peers = conn.execute(
-        f"SELECT {columns}, COUNT(*) AS n FROM cluster_labels WHERE cluster_id = ?",
-        (cluster["cluster_id"],),
-    ).fetchone()
-
     return {
-        "cluster_id": cluster["cluster_id"],
-        "peer_count": peers["n"],
-        "features": [
-            {
-                "feature": key,
-                "label": label,
-                "value": cluster[key],
-                "cluster_average": peers[key],
-            }
-            for key, label in CLUSTER_FEATURE_LABELS.items()
-        ],
+        "historical_low_price": best["price"],
+        "historical_low_discount_pct": best["discount_pct"],
+        "historical_low_date": best["date"],
+        "avg_discount_depth": cluster["avg_discount_depth"] if cluster else None,
+        "discount_frequency_per_year": cluster["discount_frequency_per_year"] if cluster else None,
     }
 
 

@@ -81,21 +81,17 @@ def test_get_game_returns_full_profile(client):
     assert body["cluster_id"] == 2
     assert body["deal_score"] == 82.5
     assert body["current_discount_pct"] == 50
-    assert body["smart_buy_probabilities"] == [
-        {"target_discount": 50, "horizon_days": 30, "probability": 0.75}
-    ]
 
     breakdown = {row["component"]: row["contribution"] for row in body["deal_score_breakdown"]}
     assert breakdown["discount_ratio"] == pytest.approx(36.0)
     assert breakdown["smart_buy_probability"] == pytest.approx(26.25, abs=0.1)
     assert breakdown["review_confidence"] == pytest.approx(23.75, abs=0.1)
 
-    comparison = body["cluster_comparison"]
-    assert comparison["cluster_id"] == 2
-    assert comparison["peer_count"] == 1
-    features = {row["feature"]: row for row in comparison["features"]}
-    assert features["avg_discount_depth"]["value"] == 60.0
-    assert features["avg_discount_depth"]["cluster_average"] == 60.0
+    summary = body["discount_summary"]
+    assert summary["historical_low_price"] == 4.99
+    assert summary["historical_low_discount_pct"] == 50
+    assert summary["avg_discount_depth"] == 60.0
+    assert summary["discount_frequency_per_year"] == 8.0
 
 
 def test_get_game_history_returns_price_series(client):
@@ -111,33 +107,31 @@ def test_get_game_history_404_for_untracked_app(client):
     assert response.status_code == 404
 
 
-def test_cluster_comparison_averages_across_cluster_peers(client, conn):
+def test_discount_summary_picks_the_deepest_historical_discount(client, conn):
+    # A deeper, cheaper discount recorded on an earlier date should win over
+    # today's smaller one - "historical low" means the best it's ever been,
+    # not the most recent row.
     conn.execute(
-        """
-        INSERT INTO tracked_games
-            (app_id, name, genre, publisher, release_date, review_count,
-             review_score_pct, first_tracked_date)
-        VALUES (10, 'Half-Life', 'Action', 'Valve', '1998-11-08', 100000, 96.0, '2026-01-01')
-        """
-    )
-    conn.execute(
-        """
-        INSERT INTO cluster_labels
-            (app_id, cluster_id, avg_discount_depth, discount_depth_std,
-             discount_frequency_per_year, time_to_first_discount_days, discount_depth_trend, last_updated)
-        VALUES (10, 2, 80.0, 10.0, 8.0, 100.0, 5.0, '2026-07-01')
-        """
+        "INSERT INTO price_history (app_id, date, price, discount_pct, source) "
+        "VALUES (730, '2025-11-29', 1.99, 80, 'itad_history')"
     )
     conn.commit()
 
     response = client.get("/game/730")
 
-    comparison = response.json()["cluster_comparison"]
-    assert comparison["peer_count"] == 2
-    features = {row["feature"]: row for row in comparison["features"]}
-    # this game's own avg_discount_depth is 60.0, cluster peer is 80.0 -> average 70.0
-    assert features["avg_discount_depth"]["value"] == 60.0
-    assert features["avg_discount_depth"]["cluster_average"] == pytest.approx(70.0)
+    summary = response.json()["discount_summary"]
+    assert summary["historical_low_price"] == 1.99
+    assert summary["historical_low_discount_pct"] == 80
+    assert summary["historical_low_date"] == "2025-11-29"
+
+
+def test_discount_summary_is_none_for_free_games(client, conn):
+    conn.execute("UPDATE tracked_games SET is_free = 1 WHERE app_id = 730")
+    conn.commit()
+
+    response = client.get("/game/730")
+
+    assert response.json()["discount_summary"] is None
 
 
 def test_get_game_reports_is_free(client, conn):
@@ -221,6 +215,5 @@ def test_get_game_handles_missing_derived_data(client, conn):
     assert body["cluster_id"] is None
     assert body["deal_score"] is None
     assert body["current_discount_pct"] is None
-    assert body["smart_buy_probabilities"] == []
     assert body["deal_score_breakdown"] is None
-    assert body["cluster_comparison"] is None
+    assert body["discount_summary"] is None

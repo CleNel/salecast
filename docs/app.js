@@ -165,18 +165,21 @@ function renderGame(game) {
       <h3>What makes up the deal score</h3>
       <p class="explain-hint">Three weighted signals, summing to the score above.</p>
       <div class="chart-container" id="deal-score-chart"></div>
+      ${
+        game.deal_score_breakdown && game.deal_score_breakdown.length > 0
+          ? `<ul class="score-component-descriptions">
+        <li><strong>Discount depth vs. own history</strong> - how deep today's discount is, relative to the best deal this game has ever had.</li>
+        <li><strong>Smart-buy odds</strong> - the model's estimate that a strong discount is coming soon.</li>
+        <li><strong>Review confidence</strong> - how reliable this game's review score is, based on how many people rated it.</li>
+      </ul>`
+          : ""
+      }
     </div>
 
     <div class="explain-section">
-      <h3>Smart-buy odds</h3>
-      <p class="explain-hint">Probability of hitting each discount within its time window.</p>
-      <div class="chart-container" id="smart-buy-chart"></div>
-    </div>
-
-    <div class="explain-section">
-      <h3>How this compares to its cluster</h3>
-      <p class="explain-hint">This game's discount behavior vs. its cluster's average.</p>
-      <div class="chart-container" id="cluster-chart"></div>
+      <h3>Discount history at a glance</h3>
+      <p class="explain-hint">The simple facts behind this game's own discounting.</p>
+      <div class="chart-container" id="discount-summary"></div>
     </div>
   `;
 
@@ -190,7 +193,17 @@ function renderGame(game) {
   } else if (game.current_price === null || game.current_price === undefined) {
     priceLineEl.textContent = "No price data yet";
   } else {
-    priceLineEl.textContent = `$${Number(game.current_price).toFixed(2)}`;
+    priceLineEl.textContent = "";
+    if (game.current_discount_pct) {
+      // current_price is what you'd actually pay - back out the original
+      // list price from the discount so both can be shown side by side.
+      const originalPrice = game.current_price / (1 - game.current_discount_pct / 100);
+      const originalSpan = document.createElement("span");
+      originalSpan.className = "original-price";
+      originalSpan.textContent = `$${originalPrice.toFixed(2)}`;
+      priceLineEl.appendChild(originalSpan);
+    }
+    priceLineEl.appendChild(document.createTextNode(`$${Number(game.current_price).toFixed(2)}`));
     if (game.current_discount_pct) {
       const discountSpan = document.createElement("span");
       discountSpan.className = "discount";
@@ -200,8 +213,7 @@ function renderGame(game) {
   }
 
   renderDealScoreChart(game);
-  renderSmartBuyChart(game);
-  renderClusterChart(game);
+  renderDiscountSummary(game);
 }
 
 function renderDealScoreChart(game) {
@@ -220,39 +232,43 @@ function renderDealScoreChart(game) {
   );
 }
 
-function renderSmartBuyChart(game) {
-  const container = document.getElementById("smart-buy-chart");
+function renderDiscountSummary(game) {
+  const container = document.getElementById("discount-summary");
   if (game.is_free) {
-    container.innerHTML = '<p class="empty-state">Free to play or no longer sold - no discount to track</p>';
+    container.innerHTML = '<p class="empty-state">Free to play or no longer sold - no discount history to show</p>';
     return;
   }
-  renderProbabilityBars(
-    container,
-    game.smart_buy_probabilities.map((row) => ({
-      label: `${row.target_discount}% off / ${row.horizon_days}d`,
-      value: row.probability * 100,
-    }))
-  );
-}
+  const summary = game.discount_summary;
+  if (!summary) {
+    container.innerHTML = '<p class="empty-state">Not enough price history yet</p>';
+    return;
+  }
 
-function renderClusterChart(game) {
-  const container = document.getElementById("cluster-chart");
-  if (game.is_free) {
-    container.innerHTML = '<p class="empty-state">Free-to-play (or no-longer-sold) games aren\'t clustered</p>';
-    return;
+  const stats = [];
+
+  stats.push(
+    summary.historical_low_discount_pct > 0
+      ? {
+          value: `$${Number(summary.historical_low_price).toFixed(2)} (-${summary.historical_low_discount_pct}%)`,
+          label: "All-time low",
+        }
+      : { value: "Never discounted", label: "All-time low" }
+  );
+
+  if (summary.avg_discount_depth !== null && summary.avg_discount_depth !== undefined) {
+    stats.push({ value: `${Math.round(summary.avg_discount_depth)}%`, label: "Average discount when on sale" });
   }
-  const comparison = game.cluster_comparison;
-  if (!comparison) {
-    container.innerHTML = '<p class="empty-state">Not enough discount history to cluster yet</p>';
-    return;
+
+  if (summary.discount_frequency_per_year !== null && summary.discount_frequency_per_year !== undefined) {
+    stats.push({ value: `~${summary.discount_frequency_per_year.toFixed(1)}x/yr`, label: "Goes on sale" });
   }
-  const rows = comparison.features
-    .filter((f) => f.cluster_average !== null && f.cluster_average !== 0)
-    .map((f) => ({
-      label: f.label,
-      pctDiff: ((f.value - f.cluster_average) / Math.abs(f.cluster_average)) * 100,
-    }));
-  renderDivergingBars(container, rows);
+
+  container.innerHTML = `<div class="discount-summary">${stats
+    .map(
+      (s) =>
+        `<div class="discount-summary-stat"><div class="stat-value">${s.value}</div><div class="stat-label">${s.label}</div></div>`
+    )
+    .join("")}</div>`;
 }
 
 async function loadGameHistory(appId) {
