@@ -51,7 +51,13 @@ def scrape_game(
     if details is None:
         return 0
 
-    is_free = int(bool(details.get("is_free")))
+    # Steam's is_free flag doesn't reliably update for games that converted
+    # to free-to-play after launch (e.g. Rocket League, Fall Guys) - Steam
+    # keeps reporting is_free=False for these even though price_overview is
+    # permanently absent. Treat "no price at all" the same as free: there's
+    # nothing to discount either way, and leaving it unflagged means a
+    # years-old price sits there forever looking current.
+    is_free = int(bool(details.get("is_free")) or details.get("price") is None)
     conn.execute("UPDATE tracked_games SET is_free = ? WHERE app_id = ?", (is_free, app_id))
     if is_free:
         _clear_derived_scores(conn, app_id)

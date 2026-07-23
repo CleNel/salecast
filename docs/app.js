@@ -125,7 +125,7 @@ function renderGame(game) {
   const dealScoreCssClass = game.is_free ? "free" : scoreClass(dealScore);
 
   const clusterLine = game.is_free
-    ? "free-to-play - not applicable"
+    ? "free to play or no longer sold - not applicable"
     : game.cluster_id === null || game.cluster_id === undefined
       ? "not enough discount history to cluster yet"
       : `cluster ${game.cluster_id}`;
@@ -176,7 +176,7 @@ function renderGame(game) {
 
   const priceLineEl = document.getElementById("price-line");
   if (game.is_free) {
-    priceLineEl.textContent = "Free to play";
+    priceLineEl.textContent = "Free to play or no longer sold on Steam";
   } else if (game.current_price === null || game.current_price === undefined) {
     priceLineEl.textContent = "No price data yet";
   } else {
@@ -197,7 +197,7 @@ function renderGame(game) {
 function renderDealScoreChart(game) {
   const container = document.getElementById("deal-score-chart");
   if (game.is_free) {
-    container.innerHTML = '<p class="empty-state">Free to play - no deal score to break down</p>';
+    container.innerHTML = '<p class="empty-state">Free to play or no longer sold - no deal score to break down</p>';
     return;
   }
   if (!game.deal_score_breakdown || game.deal_score_breakdown.length === 0) {
@@ -213,7 +213,7 @@ function renderDealScoreChart(game) {
 function renderSmartBuyChart(game) {
   const container = document.getElementById("smart-buy-chart");
   if (game.is_free) {
-    container.innerHTML = '<p class="empty-state">This game is free to play - no discount to track</p>';
+    container.innerHTML = '<p class="empty-state">Free to play or no longer sold - no discount to track</p>';
     return;
   }
   renderProbabilityBars(
@@ -228,7 +228,7 @@ function renderSmartBuyChart(game) {
 function renderClusterChart(game) {
   const container = document.getElementById("cluster-chart");
   if (game.is_free) {
-    container.innerHTML = '<p class="empty-state">Free-to-play games aren\'t clustered</p>';
+    container.innerHTML = '<p class="empty-state">Free-to-play (or no-longer-sold) games aren\'t clustered</p>';
     return;
   }
   const comparison = game.cluster_comparison;

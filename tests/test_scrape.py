@@ -153,6 +153,28 @@ def test_scrape_game_skips_non_usd_price(monkeypatch):
     assert count == 0
 
 
+def test_scrape_game_marks_is_free_when_no_price_even_if_steam_says_not_free(monkeypatch):
+    # Steam's is_free flag doesn't reliably update for games that converted
+    # to free-to-play after launch (e.g. Rocket League) - price_overview is
+    # permanently absent but is_free still reports False. A missing price
+    # should be treated as free regardless of that flag, or the game's last
+    # historical price sits there forever looking current.
+    conn = _make_conn_with_games([730])
+
+    monkeypatch.setattr(
+        scrape.steam_client,
+        "get_app_details",
+        lambda app_id, session=None: {"price": None, "is_free": False},
+    )
+    monkeypatch.setattr("time.sleep", lambda _: None)
+
+    inserted = scrape.scrape_game(conn, 730)
+
+    assert inserted == 0
+    row = conn.execute("SELECT is_free FROM tracked_games WHERE app_id = 730").fetchone()
+    assert row["is_free"] == 1
+
+
 def test_scrape_game_returns_zero_when_request_fails(monkeypatch):
     conn = _make_conn_with_games([730])
 
