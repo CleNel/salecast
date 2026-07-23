@@ -189,6 +189,15 @@ th {
   font-style: italic;
 }
 
+.loading-state {
+  animation: salecast-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes salecast-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
 footer {
   margin-top: 2.5rem;
   font-size: 0.85rem;

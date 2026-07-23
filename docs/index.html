@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>SaleCast — Steam Smart Buy</title>
-<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="style.css?v=3" />
 </head>
 <body>
   <main>
@@ -31,12 +31,12 @@
     </footer>
   </main>
 
-  <!-- ?v= is a manual cache-buster: bump it whenever charts.js/app.js
-       change. index.html itself always revalidates (max-age=0), but
+  <!-- ?v= is a manual cache-buster: bump it whenever charts.js/app.js/
+       style.css change. index.html itself always revalidates (max-age=0), but
        Cloudflare Pages serves static assets with a 4-hour cache and no
        revalidation within that window, so an unchanged URL would keep
        serving the old script to anyone who loaded the page recently. -->
-  <script src="charts.js?v=2"></script>
-  <script src="app.js?v=2"></script>
+  <script src="charts.js?v=3"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

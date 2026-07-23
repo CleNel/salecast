@@ -12,6 +12,35 @@ function getApiBase() {
 
 apiBaseInput.value = getApiBase();
 
+// Render's free tier spins the API down after ~15 min idle, so the first
+// request after a lull eats a 30-60s cold-start. Fire a harmless ping the
+// moment the page loads so that wake-up happens in the background while
+// the visitor is still reading, instead of after they hit search.
+fetch(`${getApiBase()}/health`).catch(() => {});
+
+const LOADING_MESSAGES = [
+  "Waking up the deal-hunting hamsters...",
+  "Bribing the Steam servers with a coupon code...",
+  "Politely asking the server to open its eyes...",
+  "Consulting the deal oracle...",
+  "Recalibrating the deal-o-meter...",
+  "Summoning the smart-buy model from its nap...",
+  "Checking the couch cushions for savings...",
+  "Running the numbers (all of them)...",
+  "Dusting off the price history...",
+  "This may take a moment if the server's been napping...",
+];
+
+function startLoadingMessages(render, intervalMs = 1800) {
+  let i = Math.floor(Math.random() * LOADING_MESSAGES.length);
+  render(LOADING_MESSAGES[i]);
+  const timer = setInterval(() => {
+    i = (i + 1) % LOADING_MESSAGES.length;
+    render(LOADING_MESSAGES[i]);
+  }, intervalMs);
+  return () => clearInterval(timer);
+}
+
 apiBaseSaveBtn.addEventListener("click", () => {
   const value = apiBaseInput.value.trim().replace(/\/+$/, "");
   if (value) {
@@ -19,10 +48,10 @@ apiBaseSaveBtn.addEventListener("click", () => {
   }
 });
 
-function setResultsMessage(text) {
+function setResultsMessage(text, isLoading = false) {
   resultsList.innerHTML = "";
   const li = document.createElement("li");
-  li.className = "empty-state";
+  li.className = isLoading ? "empty-state loading-state" : "empty-state";
   li.textContent = text;
   resultsList.appendChild(li);
 }
@@ -41,13 +70,25 @@ function renderResults(games) {
   }
 }
 
+let searchRequestId = 0;
+
 async function runSearch(query) {
+  const requestId = ++searchRequestId;
+  const stopLoading = startLoadingMessages((text) => {
+    if (requestId === searchRequestId) setResultsMessage(text, true);
+  });
+
   try {
     const response = await fetch(`${getApiBase()}/search?q=${encodeURIComponent(query)}`);
     if (!response.ok) throw new Error(`status ${response.status}`);
-    renderResults(await response.json());
+    const games = await response.json();
+    stopLoading();
+    if (requestId === searchRequestId) renderResults(games);
   } catch (err) {
-    setResultsMessage(`Couldn't reach the API at ${getApiBase()} - check the API settings below.`);
+    stopLoading();
+    if (requestId === searchRequestId) {
+      setResultsMessage(`Couldn't reach the API at ${getApiBase()} - check the API settings below.`);
+    }
   }
 }
 
@@ -224,21 +265,38 @@ async function loadGameHistory(appId) {
   }
 }
 
+function setGamePanelMessage(text, isLoading = false) {
+  gamePanel.classList.remove("hidden");
+  gamePanel.innerHTML = "";
+  const message = document.createElement("p");
+  message.className = isLoading ? "empty-state loading-state" : "empty-state";
+  message.textContent = text;
+  gamePanel.appendChild(message);
+}
+
+let gameRequestId = 0;
+
 async function loadGame(appId) {
   resultsList.innerHTML = "";
   searchInput.value = "";
+  const requestId = ++gameRequestId;
+  const stopLoading = startLoadingMessages((text) => {
+    if (requestId === gameRequestId) setGamePanelMessage(text, true);
+  });
+
   try {
     const response = await fetch(`${getApiBase()}/game/${appId}`);
     if (!response.ok) throw new Error(`status ${response.status}`);
     const game = await response.json();
-    renderGame(game);
-    loadGameHistory(appId);
+    stopLoading();
+    if (requestId === gameRequestId) {
+      renderGame(game);
+      loadGameHistory(appId);
+    }
   } catch (err) {
-    gamePanel.classList.remove("hidden");
-    gamePanel.innerHTML = "";
-    const message = document.createElement("p");
-    message.className = "empty-state";
-    message.textContent = `Couldn't load that game (${err.message}).`;
-    gamePanel.appendChild(message);
+    stopLoading();
+    if (requestId === gameRequestId) {
+      setGamePanelMessage(`Couldn't load that game (${err.message}).`);
+    }
   }
 }
