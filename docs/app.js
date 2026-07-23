@@ -151,7 +151,6 @@ function renderGame(game) {
       </div>
       <div>
         <div class="score-label">${game.is_free ? "Deal score" : "Deal score (0-100)"}</div>
-        <p class="score-hint">Combines today's discount depth, the odds of a better deal coming soon, and review confidence into one number.</p>
         <div class="price-line" id="price-line"></div>
       </div>
     </div>
