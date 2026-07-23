@@ -23,7 +23,13 @@ def init_schema(conn) -> None:
         conn.executescript(schema_sql)
         conn.commit()
     else:
-        for statement in schema_sql.split(";"):
+        # Strip "-- ..." line comments before splitting on ";" - a semicolon
+        # inside a comment (plain English prose, not SQL) otherwise splits a
+        # CREATE TABLE mid-statement and D1 rejects the fragment as
+        # "incomplete input" (hit in practice: a column comment that used a
+        # semicolon broke this exact path against production).
+        no_comments = "\n".join(line.split("--", 1)[0] for line in schema_sql.splitlines())
+        for statement in no_comments.split(";"):
             statement = statement.strip()
             if statement:
                 conn.execute(statement)

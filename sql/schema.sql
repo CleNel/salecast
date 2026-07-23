@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS price_history (
   -- Steam's own list price, captured directly (not derived from
   -- price/discount_pct - that back-calculation loses cent precision, see
   -- salecast/clients/steam_client.py). Only populated for daily_scrape rows
-  -- going forward; NULL for older/backfilled rows.
+  -- going forward, NULL for older/backfilled rows.
   original_price        REAL,
   review_score_snapshot REAL,
   source                TEXT NOT NULL,
