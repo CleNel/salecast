@@ -300,3 +300,55 @@ async function loadGame(appId) {
     }
   }
 }
+
+const topDealsList = document.getElementById("top-deals-list");
+const newDealsList = document.getElementById("new-deals-list");
+
+function renderDealsList(listEl, games) {
+  listEl.innerHTML = "";
+  for (const game of games) {
+    const li = document.createElement("li");
+
+    const name = document.createElement("span");
+    name.className = "deals-item-name";
+    name.textContent = game.name;
+    li.appendChild(name);
+
+    const meta = document.createElement("span");
+    meta.className = "deals-item-meta";
+
+    const priceText = game.price === 0 ? "Free" : `$${Number(game.price).toFixed(2)} -${game.discount_pct}%`;
+    const price = document.createElement("span");
+    price.textContent = priceText;
+    meta.appendChild(price);
+
+    if (game.deal_score !== null && game.deal_score !== undefined) {
+      const score = document.createElement("span");
+      score.className = `deals-item-score ${scoreClass(game.deal_score)}`;
+      score.textContent = Math.round(game.deal_score);
+      meta.appendChild(score);
+    }
+
+    li.appendChild(meta);
+    li.addEventListener("click", () => loadGame(game.app_id));
+    listEl.appendChild(li);
+  }
+}
+
+async function loadSidebarDeals() {
+  // Static file generated daily alongside the rest of docs/ (see
+  // scripts/generate_sidebar_deals.py) - deliberately not an API call, so
+  // this sidebar loads at static-asset speed and never waits on Render.
+  try {
+    const response = await fetch("deals.json");
+    if (!response.ok) return;
+    const snapshot = await response.json();
+    renderDealsList(topDealsList, snapshot.top_deals || []);
+    renderDealsList(newDealsList, snapshot.new_deals || []);
+  } catch (err) {
+    // No sidebar data yet (e.g. local dev before the snapshot has been
+    // generated) - fail quietly, the section just stays empty.
+  }
+}
+
+loadSidebarDeals();

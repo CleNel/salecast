@@ -1,6 +1,7 @@
 .env
 data/*.db
 data/*.sql
+docs/deals.json
 __pycache__/
 *.pyc
 .venv/
