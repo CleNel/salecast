@@ -1,7 +1,12 @@
 import pandas as pd
 import pytest
 
-from salecast.features import FEATURE_COLUMNS, MIN_DISCOUNT_EVENTS, build_game_features
+from salecast.features import (
+    FEATURE_COLUMNS,
+    MAX_ABS_TREND_PCT_PER_YEAR,
+    MIN_DISCOUNT_EVENTS,
+    build_game_features,
+)
 
 
 def _tracked_games(rows):
@@ -30,6 +35,27 @@ def test_build_game_features_computes_expected_values():
     # 2020-01-01 to 2021-01-01 is 366 days (2020 is a leap year)
     assert row["discount_frequency_per_year"] == pytest.approx(3 / ((366 - 91) / 365.25))
     assert row["discount_depth_trend"] == pytest.approx(25.5882, abs=1e-3)
+
+
+def test_discount_depth_trend_clips_extreme_short_window_swings():
+    # Real-world case: 4 discount events swinging 15%->80%->66% over ~6
+    # weeks produced an unclipped trend of ~451%/year - a short-window
+    # least-squares fit annualized (x365.25) into nonsense, since
+    # discount_pct itself can never move more than 100 points total.
+    tracked_games = _tracked_games([(1, "2015-04-01")])
+    price_history = pd.DataFrame(
+        [
+            {"app_id": 1, "date": "2015-04-30", "price": 12.74, "discount_pct": 15, "source": "s"},
+            {"app_id": 1, "date": "2015-06-11", "price": 5.09, "discount_pct": 66, "source": "s"},
+            {"app_id": 1, "date": "2015-06-15", "price": 2.99, "discount_pct": 80, "source": "s"},
+            {"app_id": 1, "date": "2015-06-16", "price": 5.09, "discount_pct": 66, "source": "s"},
+        ]
+    )
+
+    features = build_game_features(price_history, tracked_games)
+
+    row = features.iloc[0]
+    assert abs(row["discount_depth_trend"]) <= MAX_ABS_TREND_PCT_PER_YEAR
 
 
 def test_build_game_features_drops_games_below_min_discount_events():

@@ -16,13 +16,26 @@ FEATURE_COLUMNS = [
 ]
 
 
+# A game whose only discount events fall within a short window (a few
+# events over a handful of weeks) gets a least-squares slope fit to very
+# little data, then annualized (x365.25) - a modest swing over a few weeks
+# extrapolates into an absurd "percent per year" figure (seen in practice:
+# a game with 4 discount events across ~6 weeks produced a 451%/year
+# "trend"). discount_pct itself only ever ranges 0-100, so no annualized
+# rate beyond that range can be a real signal - clip to it instead of
+# letting the extrapolation distort clustering and visualizations.
+MAX_ABS_TREND_PCT_PER_YEAR = 100.0
+
+
 def _slope_per_year(days_since_release: pd.Series, discount_pct: pd.Series) -> float:
     """Least-squares slope of discount_pct per year of days_since_release -
-    positive means discounts have been getting deeper over time."""
+    positive means discounts have been getting deeper over time. Clipped to
+    +/-MAX_ABS_TREND_PCT_PER_YEAR (see comment above)."""
     if days_since_release.nunique() < 2:
         return np.nan
     slope_per_day, _ = np.polyfit(days_since_release, discount_pct, 1)
-    return slope_per_day * 365.25
+    slope_per_year = slope_per_day * 365.25
+    return float(np.clip(slope_per_year, -MAX_ABS_TREND_PCT_PER_YEAR, MAX_ABS_TREND_PCT_PER_YEAR))
 
 
 def build_game_features(price_history: pd.DataFrame, tracked_games: pd.DataFrame) -> pd.DataFrame:
