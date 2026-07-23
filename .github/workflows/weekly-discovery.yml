@@ -39,3 +39,11 @@ jobs:
           ITAD_API_KEY: ${{ secrets.ITAD_API_KEY }}
         run: |
           python scripts/run_backfill.py --target d1
+
+      - name: Check for tracked games with stale price data
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          python scripts/check_price_staleness.py --target d1 --max-age-days 14
