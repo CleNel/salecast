@@ -60,6 +60,13 @@ def scrape_game(
     if details.get("price") is None:
         return 0
 
+    if details.get("currency") not in (None, "USD"):
+        logger.warning(
+            "Skipping price for app_id=%d: got currency=%s instead of USD",
+            app_id, details.get("currency"),
+        )
+        return 0
+
     time.sleep(intra_call_delay_sec)
     stats = steamspy_client.get_app_stats(app_id, session=session)
     review_score_snapshot = stats["review_score_pct"] if stats else None

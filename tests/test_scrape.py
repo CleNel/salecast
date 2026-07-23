@@ -136,6 +136,23 @@ def test_scrape_game_skips_unpriced_apps(monkeypatch):
     assert count == 0
 
 
+def test_scrape_game_skips_non_usd_price(monkeypatch):
+    conn = _make_conn_with_games([730])
+
+    monkeypatch.setattr(
+        scrape.steam_client,
+        "get_app_details",
+        lambda app_id, session=None: {"price": 1349.7, "discount_pct": 75, "currency": "INR"},
+    )
+    monkeypatch.setattr("time.sleep", lambda _: None)
+
+    inserted = scrape.scrape_game(conn, 730)
+
+    assert inserted == 0
+    count = conn.execute("SELECT COUNT(*) FROM price_history").fetchone()[0]
+    assert count == 0
+
+
 def test_scrape_game_returns_zero_when_request_fails(monkeypatch):
     conn = _make_conn_with_games([730])
 

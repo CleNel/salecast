@@ -45,9 +45,13 @@ def get_app_details(
     """Fetches and parses appdetails for a single app_id. Returns a dict with
     the fields SaleCast needs, or None if the app has no store page, the
     request failed, or the app isn't a 'game' entry."""
+    # Steam infers price_overview's currency from the caller's IP when "cc"
+    # is omitted - without pinning it, a scraper running on infra whose
+    # egress region varies gets USD one run and e.g. INR/KRW the next, and
+    # "final" (assumed to be USD cents below) silently corrupts.
     session = session or requests.Session()
     response = get_with_backoff(
-        session, APP_DETAILS_URL, params={"appids": app_id}, retries=retries
+        session, APP_DETAILS_URL, params={"appids": app_id, "cc": "us"}, retries=retries
     )
     if response is None:
         return None
@@ -81,6 +85,7 @@ def get_app_details(
         "is_released": not (data.get("release_date") or {}).get("coming_soon", False),
         "is_free": bool(data.get("is_free", False)),
         "price": (price_overview.get("final") or 0) / 100 if price_overview else None,
+        "currency": price_overview.get("currency"),
         "discount_pct": price_overview.get("discount_percent"),
         "review_count": recommendations.get("total"),
     }
