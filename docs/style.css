@@ -232,10 +232,18 @@ header h1 {
   margin-bottom: 1.5rem;
 }
 
+.score-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
 .deal-score {
   font-size: 2.25rem;
   font-weight: 700;
   min-width: 4.5rem;
+  text-align: center;
 }
 
 .deal-score.good { color: var(--good); }
@@ -243,9 +251,26 @@ header h1 {
 .deal-score.bad { color: var(--bad); }
 .deal-score.free { color: var(--accent); font-size: 1.6rem; }
 
+.score-verdict {
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.score-verdict.good { color: var(--good); }
+.score-verdict.mid { color: var(--mid); }
+.score-verdict.bad { color: var(--bad); }
+
 .score-label {
   color: var(--text-muted);
   font-size: 0.85rem;
+}
+
+.score-hint {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin: 0.2rem 0 0.5rem;
+  max-width: 34ch;
 }
 
 .price-line {

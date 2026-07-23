@@ -110,6 +110,12 @@ function scoreClass(score) {
   return "bad";
 }
 
+function scoreVerdict(score) {
+  if (score >= 65) return "Buy now";
+  if (score >= 35) return "Decent deal";
+  return "Wait for a better price";
+}
+
 function renderGame(game) {
   gamePanel.classList.remove("hidden");
 
@@ -123,6 +129,7 @@ function renderGame(game) {
       ? "—"
       : String(Math.round(dealScore));
   const dealScoreCssClass = game.is_free ? "free" : scoreClass(dealScore);
+  const showVerdict = !game.is_free && dealScore !== null && dealScore !== undefined;
 
   const clusterLine = game.is_free
     ? "free to play or no longer sold - not applicable"
@@ -138,9 +145,13 @@ function renderGame(game) {
     <h2 id="game-name"></h2>
     <p class="game-meta" id="game-meta"></p>
     <div class="score-row">
-      <div class="deal-score ${dealScoreCssClass}">${dealScoreText}</div>
+      <div class="score-main">
+        <div class="deal-score ${dealScoreCssClass}">${dealScoreText}</div>
+        ${showVerdict ? `<div class="score-verdict ${dealScoreCssClass}">${scoreVerdict(dealScore)}</div>` : ""}
+      </div>
       <div>
         <div class="score-label">${game.is_free ? "Deal score" : "Deal score (0-100)"}</div>
+        <p class="score-hint">Combines today's discount depth, the odds of a better deal coming soon, and review confidence into one number.</p>
         <div class="price-line" id="price-line"></div>
       </div>
     </div>
