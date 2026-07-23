@@ -31,7 +31,12 @@
     </footer>
   </main>
 
-  <script src="charts.js"></script>
-  <script src="app.js"></script>
+  <!-- ?v= is a manual cache-buster: bump it whenever charts.js/app.js
+       change. index.html itself always revalidates (max-age=0), but
+       Cloudflare Pages serves static assets with a 4-hour cache and no
+       revalidation within that window, so an unchanged URL would keep
+       serving the old script to anyone who loaded the page recently. -->
+  <script src="charts.js?v=2"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>
