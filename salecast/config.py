@@ -16,9 +16,9 @@ CLOUDFLARE_D1_DATABASE_ID = os.environ.get("CLOUDFLARE_D1_DATABASE_ID")
 CLOUDFLARE_API_TOKEN = os.environ.get("CLOUDFLARE_API_TOKEN")
 
 # Discovery thresholds
-MIN_REVIEWS = 500
+MIN_REVIEWS = 250
 MIN_AGE_MONTHS = 6
-TARGET_TRACKED_COUNT = 1000
+TARGET_TRACKED_COUNT = 1500
 
 # How many top-by-review-count SteamSpy candidates to run through Steam's
 # slow appdetails endpoint, as a multiple of TARGET_TRACKED_COUNT. Buffers
