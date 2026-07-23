@@ -31,6 +31,14 @@ jobs:
         run: |
           python scripts/run_daily_scrape.py --target d1 ${{ github.event.inputs.limit && format('--limit {0}', github.event.inputs.limit) || '' }}
 
+      - name: Recompute composite deal scores against today's prices
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          python scripts/run_deal_score.py --target d1
+
       - name: Regenerate the Top Deals / New Deals sidebar snapshot
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
