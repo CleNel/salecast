@@ -194,13 +194,14 @@ function renderGame(game) {
     priceLineEl.textContent = "No price data yet";
   } else {
     priceLineEl.textContent = "";
-    if (game.current_discount_pct) {
-      // current_price is what you'd actually pay - back out the original
-      // list price from the discount so both can be shown side by side.
-      const originalPrice = game.current_price / (1 - game.current_discount_pct / 100);
+    // original_price is Steam's own list price, not derived from
+    // current_price/discount_pct - a discounted price is rounded to the
+    // cent (e.g. $39.99 at 75% off becomes $9.99, not $9.9975), so back-
+    // solving price / (1 - discount/100) would recover $39.96, not $39.99.
+    if (game.current_discount_pct && game.original_price) {
       const originalSpan = document.createElement("span");
       originalSpan.className = "original-price";
-      originalSpan.textContent = `$${originalPrice.toFixed(2)}`;
+      originalSpan.textContent = `$${Number(game.original_price).toFixed(2)}`;
       priceLineEl.appendChild(originalSpan);
     }
     priceLineEl.appendChild(document.createTextNode(`$${Number(game.current_price).toFixed(2)}`));

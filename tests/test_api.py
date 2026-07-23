@@ -24,8 +24,8 @@ def _fixture_conn():
         """
     )
     conn.execute(
-        "INSERT INTO price_history (app_id, date, price, discount_pct, source) "
-        "VALUES (730, '2026-07-01', 4.99, 50, 'daily_scrape')"
+        "INSERT INTO price_history (app_id, date, price, original_price, discount_pct, source) "
+        "VALUES (730, '2026-07-01', 4.99, 9.99, 50, 'daily_scrape')"
     )
     conn.execute(
         """
@@ -81,6 +81,7 @@ def test_get_game_returns_full_profile(client):
     assert body["cluster_id"] == 2
     assert body["deal_score"] == 82.5
     assert body["current_discount_pct"] == 50
+    assert body["original_price"] == 9.99
 
     breakdown = {row["component"]: row["contribution"] for row in body["deal_score_breakdown"]}
     assert breakdown["discount_ratio"] == pytest.approx(36.0)

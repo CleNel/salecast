@@ -44,7 +44,7 @@ def test_get_app_details_maps_discounted_game(monkeypatch):
         "genres": [{"description": "RPG"}],
         "publishers": ["Great Publisher"],
         "release_date": {"date": "21 Dec, 2020", "coming_soon": False},
-        "price_overview": {"final": 999, "discount_percent": 50, "currency": "USD"},
+        "price_overview": {"final": 999, "initial": 1999, "discount_percent": 50, "currency": "USD"},
         "recommendations": {"total": 12000},
     }
     monkeypatch.setattr(
@@ -64,6 +64,7 @@ def test_get_app_details_maps_discounted_game(monkeypatch):
         "is_released": True,
         "is_free": False,
         "price": 9.99,
+        "original_price": 19.99,
         "currency": "USD",
         "discount_pct": 50,
         "review_count": 12000,

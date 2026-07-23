@@ -55,7 +55,8 @@ def get_game(app_id: int, conn=Depends(get_connection)):
         raise HTTPException(status_code=404, detail=f"app_id {app_id} is not tracked")
 
     latest_price = conn.execute(
-        "SELECT price, discount_pct, date FROM price_history WHERE app_id = ? ORDER BY date DESC LIMIT 1",
+        "SELECT price, original_price, discount_pct, date FROM price_history "
+        "WHERE app_id = ? ORDER BY date DESC LIMIT 1",
         (app_id,),
     ).fetchone()
     cluster = conn.execute(
@@ -79,6 +80,7 @@ def get_game(app_id: int, conn=Depends(get_connection)):
         "publisher": game["publisher"],
         "is_free": is_free,
         "current_price": latest_price["price"] if latest_price else None,
+        "original_price": latest_price["original_price"] if latest_price else None,
         "current_discount_pct": latest_price["discount_pct"] if latest_price else None,
         "price_as_of": latest_price["date"] if latest_price else None,
         "cluster_id": cluster["cluster_id"] if cluster else None,

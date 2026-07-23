@@ -101,6 +101,23 @@ def test_scrape_game_inserts_price_row(monkeypatch):
     assert row["source"] == "daily_scrape"
 
 
+def test_scrape_game_stores_original_price(monkeypatch):
+    conn = _make_conn_with_games([730])
+
+    monkeypatch.setattr(
+        scrape.steam_client,
+        "get_app_details",
+        lambda app_id, session=None: {"price": 9.99, "original_price": 19.99, "discount_pct": 50},
+    )
+    monkeypatch.setattr(scrape.steamspy_client, "get_app_stats", lambda app_id, session=None: None)
+    monkeypatch.setattr("time.sleep", lambda _: None)
+
+    scrape.scrape_game(conn, 730)
+
+    row = conn.execute("SELECT original_price FROM price_history WHERE app_id = 730").fetchone()
+    assert row["original_price"] == 19.99
+
+
 def test_scrape_game_stores_null_review_score_when_steamspy_has_no_data(monkeypatch):
     conn = _make_conn_with_games([730])
 

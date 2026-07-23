@@ -85,6 +85,12 @@ def get_app_details(
         "is_released": not (data.get("release_date") or {}).get("coming_soon", False),
         "is_free": bool(data.get("is_free", False)),
         "price": (price_overview.get("final") or 0) / 100 if price_overview else None,
+        # Steam's own list price, not derived from price/discount_pct - a
+        # discounted price is rounded to the cent (e.g. $39.99 at 75% off
+        # becomes $9.99, not the exact $9.9975), so back-solving
+        # price / (1 - discount_pct/100) recovers $39.96, not the real
+        # $39.99. Capture it directly instead.
+        "original_price": (price_overview.get("initial") or 0) / 100 if price_overview else None,
         "currency": price_overview.get("currency"),
         "discount_pct": price_overview.get("discount_percent"),
         "review_count": recommendations.get("total"),

@@ -80,13 +80,14 @@ def scrape_game(
     cursor = conn.execute(
         """
         INSERT OR IGNORE INTO price_history
-            (app_id, date, price, discount_pct, review_score_snapshot, source)
-        VALUES (?, ?, ?, ?, ?, 'daily_scrape')
+            (app_id, date, price, original_price, discount_pct, review_score_snapshot, source)
+        VALUES (?, ?, ?, ?, ?, ?, 'daily_scrape')
         """,
         (
             app_id,
             date.today().isoformat(),
             details["price"],
+            details.get("original_price"),
             details.get("discount_pct"),
             review_score_snapshot,
         ),
