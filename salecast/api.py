@@ -101,6 +101,7 @@ def _deal_score_breakdown(deal) -> list[dict] | None:
             "component": "discount_ratio",
             "label": "Discount depth vs. own history",
             "contribution": round(100 * DEAL_SCORE_WEIGHTS["discount_ratio"] * deal["discount_ratio"], 1),
+            "max": round(100 * DEAL_SCORE_WEIGHTS["discount_ratio"], 1),
         },
         {
             "component": "smart_buy_probability",
@@ -108,6 +109,7 @@ def _deal_score_breakdown(deal) -> list[dict] | None:
             "contribution": round(
                 100 * DEAL_SCORE_WEIGHTS["smart_buy_probability"] * deal["smart_buy_probability"], 1
             ),
+            "max": round(100 * DEAL_SCORE_WEIGHTS["smart_buy_probability"], 1),
         },
         {
             "component": "review_confidence",
@@ -115,6 +117,7 @@ def _deal_score_breakdown(deal) -> list[dict] | None:
             "contribution": round(
                 100 * DEAL_SCORE_WEIGHTS["review_confidence"] * deal["review_confidence"], 1
             ),
+            "max": round(100 * DEAL_SCORE_WEIGHTS["review_confidence"], 1),
         },
     ]
 

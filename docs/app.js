@@ -229,7 +229,7 @@ function renderDealScoreChart(game) {
   }
   renderStackedBarChart(
     container,
-    game.deal_score_breakdown.map((row) => ({ label: row.label, value: row.contribution }))
+    game.deal_score_breakdown.map((row) => ({ label: row.label, value: row.contribution, max: row.max }))
   );
 }
 

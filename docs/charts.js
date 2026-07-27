@@ -173,21 +173,24 @@ function renderPriceHistoryChart(container, rows) {
 
 /**
  * Horizontal stacked bar - each segment's width is its already-weighted
- * contribution (0-100 scale, summing to the deal score). 2px surface gaps
- * between segments per the mark spec; each segment direct-labeled since
- * there are only 3 (aqua's the one categorical slot under 3:1 contrast on
- * light mode, so it always carries a visible text label, never color alone).
+ * contribution, scaled against maxTotal (the points-possible scale, e.g. 100
+ * for the overall deal score) rather than against the sum of segment values -
+ * that leaves the bar's own --border background showing through as the
+ * remaining/unearned points, instead of the segments always stretching to
+ * fill the full bar. 2px surface gaps between segments per the mark spec;
+ * each segment direct-labeled since there are only 3 (aqua's the one
+ * categorical slot under 3:1 contrast on light mode, so it always carries a
+ * visible text label, never color alone).
  */
-function renderStackedBarChart(container, segments) {
+function renderStackedBarChart(container, segments, maxTotal = 100) {
   container.innerHTML = "";
-  const total = segments.reduce((sum, s) => sum + Math.max(s.value, 0), 0);
 
   const bar = document.createElement("div");
   bar.className = "stacked-bar";
   const tooltip = makeTooltip(container);
 
   segments.forEach((segment, i) => {
-    const widthPct = total > 0 ? (Math.max(segment.value, 0) / total) * 100 : 100 / segments.length;
+    const widthPct = maxTotal > 0 ? (Math.max(segment.value, 0) / maxTotal) * 100 : 0;
     const piece = document.createElement("div");
     piece.className = "stacked-bar-segment";
     piece.style.width = `${widthPct}%`;
@@ -195,8 +198,9 @@ function renderStackedBarChart(container, segments) {
     piece.tabIndex = 0;
     piece.addEventListener("pointermove", (event) => {
       const rect = container.getBoundingClientRect();
+      const outOf = segment.max !== undefined ? `${segment.value.toFixed(1)}/${segment.max} pts` : `${segment.value.toFixed(1)} pts`;
       showTooltip(tooltip, container, event.clientX - rect.left, event.clientY - rect.top, [
-        { strong: `${segment.value.toFixed(1)} pts` },
+        { strong: outOf },
         { text: segment.label },
       ]);
     });
@@ -214,7 +218,8 @@ function renderStackedBarChart(container, segments) {
     swatch.className = "chart-legend-swatch";
     swatch.style.background = `var(--series-${i + 1})`;
     const text = document.createElement("span");
-    text.textContent = `${segment.label} (${segment.value.toFixed(1)})`;
+    const outOf = segment.max !== undefined ? `${segment.value.toFixed(1)}/${segment.max}` : segment.value.toFixed(1);
+    text.textContent = `${segment.label} (${outOf})`;
     item.append(swatch, text);
     legend.appendChild(item);
   });

@@ -88,6 +88,11 @@ def test_get_game_returns_full_profile(client):
     assert breakdown["smart_buy_probability"] == pytest.approx(26.25, abs=0.1)
     assert breakdown["review_confidence"] == pytest.approx(23.75, abs=0.1)
 
+    max_points = {row["component"]: row["max"] for row in body["deal_score_breakdown"]}
+    assert max_points["discount_ratio"] == pytest.approx(40.0)
+    assert max_points["smart_buy_probability"] == pytest.approx(35.0)
+    assert max_points["review_confidence"] == pytest.approx(25.0)
+
     summary = body["discount_summary"]
     assert summary["historical_low_price"] == 4.99
     assert summary["historical_low_discount_pct"] == 50
