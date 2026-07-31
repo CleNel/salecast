@@ -6,6 +6,16 @@ const searchInput = document.getElementById("search-input");
 const resultsList = document.getElementById("results");
 const gamePanel = document.getElementById("game-panel");
 
+const filterGenreEl = document.getElementById("filter-genre");
+const filterPriceMinEl = document.getElementById("filter-price-min");
+const filterPriceMaxEl = document.getElementById("filter-price-max");
+const filterOnSaleEl = document.getElementById("filter-on-sale");
+const filterMinScoreEl = document.getElementById("filter-min-score");
+const sortByEl = document.getElementById("sort-by");
+const filtersClearBtn = document.getElementById("filters-clear");
+const loadMoreBtn = document.getElementById("load-more");
+const resultsSentinel = document.getElementById("results-sentinel");
+
 function getApiBase() {
   return localStorage.getItem("salecast_api_base") || DEFAULT_API_BASE;
 }
@@ -56,52 +66,206 @@ function setResultsMessage(text, isLoading = false) {
   resultsList.appendChild(li);
 }
 
-function renderResults(games) {
-  resultsList.innerHTML = "";
-  if (games.length === 0) {
-    setResultsMessage("No matches");
-    return;
-  }
-  for (const game of games) {
-    const li = document.createElement("li");
-    li.textContent = game.name;
-    li.addEventListener("click", () => loadGame(game.app_id));
-    resultsList.appendChild(li);
-  }
-}
+// Browsing/filtering runs entirely client-side against a once-a-day static
+// snapshot (docs/games_catalog.json, generated alongside deals.json) rather
+// than hitting the (free-tier, sleep-prone) API per keystroke - the old
+// /search endpoint only supported a name lookup and paid a cold-start tax on
+// every query. Only the single-game detail panel still calls the live API.
+const PAGE_SIZE = 30;
 
-let searchRequestId = 0;
+let catalogGames = [];
+let catalogLoaded = false;
+let currentResults = [];
+let visibleCount = 0;
 
-async function runSearch(query) {
-  const requestId = ++searchRequestId;
-  const stopLoading = startLoadingMessages((text) => {
-    if (requestId === searchRequestId) setResultsMessage(text, true);
-  });
-
+async function loadCatalog() {
   try {
-    const response = await fetch(`${getApiBase()}/search?q=${encodeURIComponent(query)}`);
-    if (!response.ok) throw new Error(`status ${response.status}`);
-    const games = await response.json();
-    stopLoading();
-    if (requestId === searchRequestId) renderResults(games);
+    const response = await fetch("games_catalog.json");
+    if (!response.ok) return;
+    const data = await response.json();
+    catalogGames = data.games || [];
+    catalogLoaded = true;
+    populateGenreOptions();
+    if (hasActiveFilters()) applyFilters();
   } catch (err) {
-    stopLoading();
-    if (requestId === searchRequestId) {
-      setResultsMessage(`Couldn't reach the API at ${getApiBase()} - check the API settings below.`);
-    }
+    // Browsing/filtering just won't work; the game-detail lookup is unaffected.
   }
 }
 
-let debounceTimer = null;
-searchInput.addEventListener("input", () => {
-  clearTimeout(debounceTimer);
-  const query = searchInput.value.trim();
-  if (query.length < 2) {
-    resultsList.innerHTML = "";
+function populateGenreOptions() {
+  const genres = [...new Set(catalogGames.map((g) => g.genre).filter(Boolean))].sort();
+  for (const genre of genres) {
+    const option = document.createElement("option");
+    option.value = genre;
+    option.textContent = genre;
+    filterGenreEl.appendChild(option);
+  }
+}
+
+function hasActiveFilters() {
+  return (
+    searchInput.value.trim().length > 0 ||
+    filterGenreEl.value !== "" ||
+    filterPriceMinEl.value !== "" ||
+    filterPriceMaxEl.value !== "" ||
+    filterOnSaleEl.checked ||
+    filterMinScoreEl.value !== "0"
+  );
+}
+
+function matchesFilters(game) {
+  const query = searchInput.value.trim().toLowerCase();
+  if (query && !game.name.toLowerCase().includes(query)) return false;
+
+  if (filterGenreEl.value && game.genre !== filterGenreEl.value) return false;
+
+  const minPrice = parseFloat(filterPriceMinEl.value);
+  if (!Number.isNaN(minPrice) && (game.price === null || game.price < minPrice)) return false;
+
+  const maxPrice = parseFloat(filterPriceMaxEl.value);
+  if (!Number.isNaN(maxPrice) && (game.price === null || game.price > maxPrice)) return false;
+
+  if (filterOnSaleEl.checked && !(game.discount_pct > 0)) return false;
+
+  const minScore = parseFloat(filterMinScoreEl.value);
+  if (minScore > 0 && (game.deal_score === null || game.deal_score < minScore)) return false;
+
+  return true;
+}
+
+function sortResults(games) {
+  const sorted = [...games];
+  switch (sortByEl.value) {
+    case "discount_pct":
+      sorted.sort((a, b) => (b.discount_pct || 0) - (a.discount_pct || 0));
+      break;
+    case "price_asc":
+      sorted.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+      break;
+    case "price_desc":
+      sorted.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
+      break;
+    case "review_score":
+      sorted.sort((a, b) => (b.review_score_pct ?? -Infinity) - (a.review_score_pct ?? -Infinity));
+      break;
+    case "deal_score":
+    default:
+      sorted.sort((a, b) => (b.deal_score ?? -Infinity) - (a.deal_score ?? -Infinity));
+      break;
+  }
+  return sorted;
+}
+
+function applyFilters() {
+  if (!catalogLoaded) {
+    setResultsMessage("Loading games…", true);
     return;
   }
-  debounceTimer = setTimeout(() => runSearch(query), 250);
+
+  if (!hasActiveFilters()) {
+    currentResults = [];
+    visibleCount = 0;
+    resultsList.innerHTML = "";
+    loadMoreBtn.classList.add("hidden");
+    return;
+  }
+
+  currentResults = sortResults(catalogGames.filter(matchesFilters));
+  visibleCount = 0;
+  resultsList.innerHTML = "";
+
+  if (currentResults.length === 0) {
+    setResultsMessage("No matches");
+    loadMoreBtn.classList.add("hidden");
+    return;
+  }
+
+  renderNextPage();
+}
+
+function renderNextPage() {
+  const nextSlice = currentResults.slice(visibleCount, visibleCount + PAGE_SIZE);
+  for (const game of nextSlice) {
+    resultsList.appendChild(buildResultItem(game));
+  }
+  visibleCount += nextSlice.length;
+  loadMoreBtn.classList.toggle("hidden", visibleCount >= currentResults.length);
+}
+
+function buildResultItem(game) {
+  const li = document.createElement("li");
+  li.className = "result-item";
+
+  const name = document.createElement("span");
+  name.className = "deals-item-name";
+  name.textContent = game.name;
+  li.appendChild(name);
+
+  const meta = document.createElement("span");
+  meta.className = "deals-item-meta";
+
+  const priceSpan = document.createElement("span");
+  priceSpan.textContent =
+    game.price === null || game.price === undefined
+      ? "No price data"
+      : game.discount_pct > 0
+        ? `$${Number(game.price).toFixed(2)} -${game.discount_pct}%`
+        : `$${Number(game.price).toFixed(2)}`;
+  meta.appendChild(priceSpan);
+
+  if (game.deal_score !== null && game.deal_score !== undefined) {
+    const score = document.createElement("span");
+    score.className = `deals-item-score ${scoreClass(game.deal_score)}`;
+    score.textContent = Math.round(game.deal_score);
+    meta.appendChild(score);
+  }
+
+  li.appendChild(meta);
+  li.addEventListener("click", () => loadGame(game.app_id));
+  return li;
+}
+
+let filterDebounceTimer = null;
+function scheduleApplyFilters() {
+  clearTimeout(filterDebounceTimer);
+  filterDebounceTimer = setTimeout(applyFilters, 200);
+}
+
+searchInput.addEventListener("input", scheduleApplyFilters);
+filterGenreEl.addEventListener("change", applyFilters);
+filterPriceMinEl.addEventListener("input", scheduleApplyFilters);
+filterPriceMaxEl.addEventListener("input", scheduleApplyFilters);
+filterOnSaleEl.addEventListener("change", applyFilters);
+filterMinScoreEl.addEventListener("change", applyFilters);
+sortByEl.addEventListener("change", applyFilters);
+filtersClearBtn.addEventListener("click", () => {
+  searchInput.value = "";
+  filterGenreEl.value = "";
+  filterPriceMinEl.value = "";
+  filterPriceMaxEl.value = "";
+  filterOnSaleEl.checked = false;
+  filterMinScoreEl.value = "0";
+  sortByEl.value = "deal_score";
+  applyFilters();
 });
+
+loadMoreBtn.addEventListener("click", renderNextPage);
+
+// Backs the "Load more" button with real infinite scroll: once the sentinel
+// below it scrolls into view, load the next page automatically. The button
+// stays as an explicit, always-visible affordance for anyone who'd rather
+// click than scroll (or whose browser is slow to fire the observer).
+const loadMoreObserver = new IntersectionObserver(
+  (entries) => {
+    if (entries[0].isIntersecting && !loadMoreBtn.classList.contains("hidden")) {
+      renderNextPage();
+    }
+  },
+  { rootMargin: "200px" }
+);
+loadMoreObserver.observe(resultsSentinel);
+
+loadCatalog();
 
 function scoreClass(score) {
   if (score === null || score === undefined) return "";
@@ -306,6 +470,9 @@ let gameRequestId = 0;
 async function loadGame(appId) {
   resultsList.innerHTML = "";
   searchInput.value = "";
+  currentResults = [];
+  visibleCount = 0;
+  loadMoreBtn.classList.add("hidden");
   const requestId = ++gameRequestId;
   const stopLoading = startLoadingMessages((text) => {
     if (requestId === gameRequestId) setGamePanelMessage(text, true);

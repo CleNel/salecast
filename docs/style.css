@@ -204,6 +204,86 @@ header h1 {
   background: var(--bg);
 }
 
+.result-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.hidden {
+  display: none;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.filters select,
+.filters input[type="number"] {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.filters input[type="number"] {
+  width: 5.5rem;
+}
+
+.filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+#filters-clear {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+#filters-clear:hover {
+  color: var(--text);
+}
+
+.results-sentinel {
+  height: 1px;
+}
+
+.load-more {
+  display: block;
+  width: 100%;
+  margin-top: 0.6rem;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.load-more:hover {
+  background: var(--bg);
+}
+
+.load-more.hidden {
+  display: none;
+}
+
 .game-panel {
   margin-top: 1.5rem;
   padding: 1.5rem;

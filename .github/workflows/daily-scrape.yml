@@ -47,6 +47,14 @@ jobs:
         run: |
           python scripts/generate_sidebar_deals.py --target d1 --output docs/deals.json
 
+      - name: Regenerate the browse/filter games catalog
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          python scripts/generate_search_catalog.py --target d1 --output docs/games_catalog.json
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"

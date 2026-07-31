@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>SaleCast — Steam Smart Buy</title>
-<link rel="stylesheet" href="style.css?v=10" />
+<link rel="stylesheet" href="style.css?v=11" />
 </head>
 <body>
   <div class="layout">
@@ -16,7 +16,37 @@
 
       <section class="search">
         <input id="search-input" type="text" placeholder="Search a game (e.g. Counter-Strike)" autocomplete="off" />
+
+        <div class="filters">
+          <select id="filter-genre">
+            <option value="">All genres</option>
+          </select>
+          <input id="filter-price-min" type="number" min="0" step="1" placeholder="Min $" />
+          <input id="filter-price-max" type="number" min="0" step="1" placeholder="Max $" />
+          <label class="filter-checkbox">
+            <input id="filter-on-sale" type="checkbox" />
+            On sale only
+          </label>
+          <select id="filter-min-score">
+            <option value="0">Any deal score</option>
+            <option value="80">80+ score</option>
+            <option value="65">65+ score</option>
+            <option value="50">50+ score</option>
+            <option value="35">35+ score</option>
+          </select>
+          <select id="sort-by">
+            <option value="deal_score">Sort: Deal score</option>
+            <option value="discount_pct">Sort: Biggest discount</option>
+            <option value="price_asc">Sort: Price (low to high)</option>
+            <option value="price_desc">Sort: Price (high to low)</option>
+            <option value="review_score">Sort: Review score</option>
+          </select>
+          <button id="filters-clear" type="button">Clear filters</button>
+        </div>
+
         <ul id="results" class="results"></ul>
+        <div id="results-sentinel" class="results-sentinel"></div>
+        <button id="load-more" class="load-more hidden" type="button">Load more games</button>
       </section>
 
       <section id="game-panel" class="game-panel hidden"></section>
@@ -52,7 +82,7 @@
        Cloudflare Pages serves static assets with a 4-hour cache and no
        revalidation within that window, so an unchanged URL would keep
        serving the old script to anyone who loaded the page recently. -->
-  <script src="charts.js?v=10"></script>
-  <script src="app.js?v=10"></script>
+  <script src="charts.js?v=11"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>
