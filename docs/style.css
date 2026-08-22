@@ -305,6 +305,39 @@ header h1 {
   font-size: 0.9rem;
 }
 
+.steam-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0 0 1.25rem;
+}
+
+.steam-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.steam-link-icon {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.steam-link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .score-row {
   display: flex;
   align-items: center;
