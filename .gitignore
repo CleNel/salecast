@@ -3,6 +3,7 @@ CLAUDE.local.md
 data/*.db
 data/*.sql
 docs/deals.json
+docs/games_catalog.json
 __pycache__/
 *.pyc
 .venv/
