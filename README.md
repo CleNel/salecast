@@ -2,14 +2,13 @@
 
 ML system that clusters Steam games by discounting behavior, predicts the probability a game hits a target discount, and combines both into a deal-quality score. See `steam-smart-buy-plan.md` for the full project spec and its scope-decision rationale.
 
-This repo implements the full 6-week plan:
+## Goal
 
-- **Week 1: data foundation** — discovers a curated set of ~500-1000 qualifying games and backfills their historical price data.
-- **Week 2: automation** — a Cloudflare D1 database and scheduled GitHub Actions jobs keep it live (daily price scrape, weekly discovery).
-- **Week 3: clustering** — groups games by discounting behavior (how deep, how often, how it trends over time) via K-means.
-- **Week 4: smart-buy model** — predicts the probability a game hits a target discount within N days.
-- **Week 5: deal scorer + API** — a composite 0-100 "how good is this deal" score, exposed via a small FastAPI service.
-- **Week 6: frontend + polish** — a minimal static search page (`docs/`, deployable free on GitHub Pages) and a monthly GitHub Actions job that keeps clustering/smart-buy/deal-score current.
+Steam sales are constant, but discounts aren't equal — 30% off can be the best a game has ever gone on sale for, or worse than what it sold for last month. The goal is to answer one question for any tracked game: **is this discount actually worth buying into right now?**
+
+SaleCast answers that with a 0-100 deal score built from three signals: how deep today's discount is relative to *that specific game's* own discount history (not an absolute number), the modeled probability that an even better discount is coming soon, and how much to trust the game's review score. A clustering step groups games by discounting behavior first (some sale often and shallow, others rarely and deep), so "good deal" is judged against each game's own pattern rather than a single global bar.
+
+The whole pipeline — discovering qualifying games, backfilling and scraping price history, clustering, prediction, and scoring — runs on a schedule via GitHub Actions so the numbers stay current without manual upkeep, and is served through a small API and static frontend (below).
 
 ## Design decisions worth knowing about
 
