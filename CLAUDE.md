@@ -14,6 +14,7 @@ See `CLAUDE.local.md` (gitignored, not on GitHub) for account IDs, URLs, and any
 ## Deploy workflow — non-obvious gotchas
 - **Frontend is NOT git-connected.** Pushing to `main` does nothing for `docs/`. After any `docs/` change, redeploy manually:
   `npx wrangler pages deploy docs --project-name=salecast`
+- **Bump the `?v=` cache-busters in `docs/index.html`** whenever `docs/app.js`, `charts.js`, or `style.css` change. Pages caches those assets for 4 hours, so without a bump anyone who visited recently keeps the old copy and the change looks like it didn't deploy.
 - **Backend redeploys automatically on push to `main`** (Render is git-connected to this repo).
 - Backend cold-starts on Render's free tier — first request after idle can be slow; don't mistake that for a bug.
 - D1 schema/data changes go through `wrangler d1 execute` or the scripts in `scripts/`, not manual dashboard edits.
