@@ -28,6 +28,17 @@ A hand-weighted v1 composite, not a learned model (see `steam-smart-buy-plan.md`
 
 Average playtime is in the original plan but **not used**: SteamSpy's `average_forever` (the only free source) returns 0 for every game tested, including major titles, since Valve restricted that data years ago. It isn't faked.
 
+## Next-sale estimate (`salecast/sale_estimate.py`)
+
+For a game that isn't on sale, the API returns `next_sale_estimate`: a **range** of days until its next discount, from the 10th-90th percentile of its own past gaps between discounts, conditioned on how long it has already gone without one. It needs at least 4 past discount starts, and also reports the next Steam seasonal sale window for context.
+
+It's a range on purpose. Backtested on the Jul 2026 snapshot (hide history after a cutoff, predict the next discount start):
+
+- A per-game predicted *date* was off by ~3 weeks on average, no better than guessing the same ~39 days for every game.
+- The 10th-90th percentile range contained the real next-sale date about 74-90% of the time depending on cutoff (the lower figure is the least biased, since later cutoffs only count games whose next sale already happened). The UI calls it "usually", not a guarantee.
+
+Games past every gap they've ever shown are flagged `overdue` and get an open-ended lower bound.
+
 ## Data pipeline notes
 
 - **D1 writes are batched** into one HTTP call per game/scenario (`D1Connection.execute_batch`). The full backfill took ~27s/game with one round trip per row; Cloudflare's `{"batch": [...]}` endpoint cut that by roughly an order of magnitude.

@@ -427,6 +427,32 @@ function renderDiscountSummary(game) {
         `<div class="discount-summary-stat"><div class="stat-value">${s.value}</div><div class="stat-label">${s.label}</div></div>`
     )
     .join("")}</div>`;
+
+  const estimateHtml = nextSaleEstimateHtml(game.next_sale_estimate);
+  if (estimateHtml) container.insertAdjacentHTML("beforeend", estimateHtml);
+}
+
+function formatWait(days) {
+  if (days < 14) return `${days} day${days === 1 ? "" : "s"}`;
+  if (days < 60) return `${Math.round(days / 7)} weeks`;
+  return `${Math.round(days / 30)} months`;
+}
+
+// Only present for games not currently on sale with enough history. A range,
+// not a date: backtested per-game date predictions were off by ~3 weeks.
+function nextSaleEstimateHtml(est) {
+  if (!est) return "";
+  const range = est.low_days === 0
+    ? `within about ${formatWait(est.high_days)}`
+    : `in roughly ${formatWait(est.low_days)} to ${formatWait(est.high_days)}`;
+  const lead = est.overdue
+    ? `Overdue by its usual pattern (it typically goes on sale every ~${formatWait(est.typical_gap_days)}) - could come any time, most likely ${range}.`
+    : `Next sale usually ${range}.`;
+  const seasonal = est.days_until_seasonal_sale === 0
+    ? "A Steam seasonal sale is on now."
+    : `Next Steam seasonal sale starts in ~${formatWait(est.days_until_seasonal_sale)}.`;
+  return `<p class="sale-estimate"><strong>When might it go on sale?</strong> ${lead} ${seasonal}
+    <span class="sale-estimate-note">Rough estimate from this game's own ${est.past_sales} past sales; the real date is often outside the range.</span></p>`;
 }
 
 async function loadGameHistory(appId) {

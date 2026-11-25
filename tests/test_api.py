@@ -223,3 +223,44 @@ def test_get_game_handles_missing_derived_data(client, conn):
     assert body["current_discount_pct"] is None
     assert body["deal_score_breakdown"] is None
     assert body["discount_summary"] is None
+
+
+def test_next_sale_estimate_is_none_while_game_is_on_sale(client):
+    # fixture game 730 is currently 50% off
+    assert client.get("/game/730").json()["next_sale_estimate"] is None
+
+
+def test_next_sale_estimate_present_for_off_sale_game_with_history(client, conn):
+    conn.execute(
+        "INSERT INTO tracked_games (app_id, name, first_tracked_date) VALUES (500, 'Regular Seller', '2025-01-01')"
+    )
+    # five 3-day sales roughly every 60 days, then back to full price
+    for start, end in (
+        ("2025-01-10", "2025-01-13"), ("2025-03-11", "2025-03-14"), ("2025-05-10", "2025-05-13"),
+        ("2025-07-09", "2025-07-12"), ("2025-09-07", "2025-09-10"),
+    ):
+        conn.execute(
+            "INSERT INTO price_history (app_id, date, price, discount_pct, source) VALUES (500, ?, 5.0, 50, 'itad_history')",
+            (start,),
+        )
+        conn.execute(
+            "INSERT INTO price_history (app_id, date, price, discount_pct, source) VALUES (500, ?, 10.0, 0, 'itad_history')",
+            (end,),
+        )
+    conn.commit()
+
+    estimate = client.get("/game/500").json()["next_sale_estimate"]
+
+    assert estimate is not None
+    assert estimate["past_sales"] == 5
+    assert estimate["low_days"] <= estimate["high_days"]
+
+
+def test_next_sale_estimate_none_without_enough_history(client, conn):
+    conn.execute("INSERT INTO tracked_games (app_id, name, first_tracked_date) VALUES (501, 'New', '2026-07-01')")
+    conn.execute(
+        "INSERT INTO price_history (app_id, date, price, discount_pct, source) VALUES (501, '2026-07-02', 10.0, 0, 'daily_scrape')"
+    )
+    conn.commit()
+
+    assert client.get("/game/501").json()["next_sale_estimate"] is None

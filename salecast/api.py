@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from salecast import config, db
 from salecast.clients.d1_client import D1Connection
 from salecast.deal_score import WEIGHTS as DEAL_SCORE_WEIGHTS
+from salecast.sale_estimate import discount_start_dates, estimate_next_sale
 
 app = FastAPI(title="SaleCast API", description="Steam deal-quality lookups")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"])
@@ -87,7 +88,20 @@ def get_game(app_id: int, conn=Depends(get_connection)):
         "deal_score": deal["composite_score"] if deal else None,
         "deal_score_breakdown": _deal_score_breakdown(deal),
         "discount_summary": None if is_free else _discount_summary(conn, app_id, cluster),
+        "next_sale_estimate": None if is_free else _next_sale_estimate(conn, app_id, latest_price),
     }
+
+
+def _next_sale_estimate(conn, app_id: int, latest_price) -> dict | None:
+    """Only meaningful for a game that isn't on sale right now."""
+    if latest_price is not None and (latest_price["discount_pct"] or 0) > 0:
+        return None
+    rows = conn.execute(
+        "SELECT date, discount_pct FROM price_history WHERE app_id = ? ORDER BY date",
+        (app_id,),
+    ).fetchall()
+    starts = discount_start_dates([(row["date"], row["discount_pct"]) for row in rows])
+    return estimate_next_sale(starts)
 
 
 def _deal_score_breakdown(deal) -> list[dict] | None:
