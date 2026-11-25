@@ -14,10 +14,10 @@ def _make_conn():
     return conn
 
 
-def _add_game(conn, app_id, name, is_free=0):
+def _add_game(conn, app_id, name, is_free=0, first_tracked="2020-01-01"):
     conn.execute(
-        "INSERT INTO tracked_games (app_id, name, first_tracked_date, is_free) VALUES (?, ?, '2020-01-01', ?)",
-        (app_id, name, is_free),
+        "INSERT INTO tracked_games (app_id, name, first_tracked_date, is_free) VALUES (?, ?, ?, ?)",
+        (app_id, name, first_tracked, is_free),
     )
 
 
@@ -63,6 +63,17 @@ def test_does_not_flag_game_with_recent_price():
 def test_does_not_flag_free_games_regardless_of_price_age():
     conn = _make_conn()
     _add_game(conn, 4, "Free Game", is_free=1)
+    conn.commit()
+
+    stale = find_stale_games(conn, max_age_days=14, today=date(2026, 7, 23))
+
+    assert stale == []
+
+
+def test_does_not_flag_newly_tracked_game_awaiting_first_scrape():
+    conn = _make_conn()
+    _add_game(conn, 5, "Just Discovered", first_tracked="2026-07-20")
+    _add_price(conn, 5, "2026-06-01")  # old backfilled history, no daily scrape yet
     conn.commit()
 
     stale = find_stale_games(conn, max_age_days=14, today=date(2026, 7, 23))

@@ -24,6 +24,7 @@ STALE_SQL = """
     FROM tracked_games tg
     LEFT JOIN price_history ph ON ph.app_id = tg.app_id
     WHERE tg.is_free = 0
+      AND tg.first_tracked_date < ?
     GROUP BY tg.app_id, tg.name
     HAVING latest_date IS NULL OR latest_date < ?
 """
@@ -32,7 +33,10 @@ STALE_SQL = """
 def find_stale_games(conn, max_age_days: int, today: date | None = None) -> list[dict]:
     today = today or date.today()
     cutoff = (today - timedelta(days=max_age_days)).isoformat()
-    rows = conn.execute(STALE_SQL, (cutoff,)).fetchall()
+    # Games added within the window haven't had a daily scrape yet (the weekly
+    # discovery run that adds them also runs this check), and their backfilled
+    # ITAD history is usually older than the cutoff - not a real staleness.
+    rows = conn.execute(STALE_SQL, (cutoff, cutoff)).fetchall()
     return [{"app_id": row["app_id"], "name": row["name"], "latest_date": row["latest_date"]} for row in rows]
 
 
