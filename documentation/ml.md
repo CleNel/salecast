@@ -30,14 +30,25 @@ Average playtime is in the original plan but **not used**: SteamSpy's `average_f
 
 ## Next-sale estimate (`salecast/sale_estimate.py`)
 
-For a game that isn't on sale, the API returns `next_sale_estimate`: a **range** of days until its next discount, from the 10th-90th percentile of its own past gaps between discounts, conditioned on how long it has already gone without one. It needs at least 4 past discount starts, and also reports the next Steam seasonal sale window for context.
+For a game that isn't on sale, the API returns `next_sale_estimate`: a **range** of days until its next discount, from the 10th-90th percentile of its own past gaps between discounts, conditioned on how long it has already gone without one. It needs at least 7 past discount starts, and also reports the next Steam seasonal sale window for context.
 
-It's a range on purpose. Backtested on the Jul 2026 snapshot (hide history after a cutoff, predict the next discount start):
+It's a range on purpose. Backtested on live D1 data (Nov 2026: monthly cutoffs Feb-Jun, 150 days of follow-up, off-sale games, 5,400 evaluations):
 
-- A per-game predicted *date* was off by ~3 weeks on average, no better than guessing the same ~39 days for every game.
-- The 10th-90th percentile range contained the real next-sale date about 74-90% of the time depending on cutoff (the lower figure is the least biased, since later cutoffs only count games whose next sale already happened). The UI calls it "usually", not a guarantee.
+- A per-game predicted *date* is off by ~16 days on average, no better than guessing the same ~19 days for every game. Per-game history also barely narrows a range: at equal 80% coverage it needs 48 days versus 56 for pooling everyone's gaps.
+- The 10th-90th percentile range contains the real next-sale date about **88% of the time** for games with 7+ past sales (median width 60 days). With only 4-6 past sales it held 57% of the time, which is why the minimum is 7.
+- 35% of discount starts fall inside Steam's seasonal sale windows, which cover 21% of the year: a mild pull, shown as context rather than modeled.
 
-Games past every gap they've ever shown are flagged `overdue` and get an open-ended lower bound.
+**Confidence is how tight the range is**, not a different probability per game (hit rates were similar across game types; what differs is how wide the range has to be):
+
+| Label | Range width | Held in backtest |
+|---|---|---|
+| High | up to 45 days | ~82% |
+| Medium | 46-80 days | ~90% |
+| Low | over 80 days | ~91% |
+
+Narrow ranges are the most useful but hit slightly less often, so the UI shows the measured rate next to the label. Games past every gap they've ever shown are flagged `overdue`: always low confidence, open-ended lower bound, and no quoted hit rate (only 42 such cases in the backtest).
+
+Caveats: the evaluations overlap (the same games appear at several cutoffs) and cover one year, so treat the rates as approximate. The tier thresholds live in `CONFIDENCE_TIERS`; re-run the backtest if the data changes materially.
 
 ## Data pipeline notes
 

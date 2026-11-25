@@ -435,24 +435,52 @@ function renderDiscountSummary(game) {
 function formatWait(days) {
   if (days < 14) return `${days} day${days === 1 ? "" : "s"}`;
   if (days < 60) return `${Math.round(days / 7)} weeks`;
-  return `${Math.round(days / 30)} months`;
+  if (days < 730) return `${Math.round(days / 30)} months`;
+  return `${Math.round(days / 365)} years`;
 }
 
+const CONFIDENCE_LABELS = { high: "High confidence", medium: "Medium confidence", low: "Low confidence" };
+
 // Only present for games not currently on sale with enough history. A range,
-// not a date: backtested per-game date predictions were off by ~3 weeks.
+// not a date: backtested per-game date predictions were off by ~16 days, no
+// better than a flat guess. Confidence = how tight the range is (server-side,
+// see salecast/sale_estimate.py); all values interpolated here are numbers or
+// fixed strings from the API, never user-controlled text.
 function nextSaleEstimateHtml(est) {
   if (!est) return "";
-  const range = est.low_days === 0
-    ? `within about ${formatWait(est.high_days)}`
-    : `in roughly ${formatWait(est.low_days)} to ${formatWait(est.high_days)}`;
-  const lead = est.overdue
-    ? `Overdue by its usual pattern (it typically goes on sale every ~${formatWait(est.typical_gap_days)}) - could come any time, most likely ${range}.`
-    : `Next sale usually ${range}.`;
+
+  let range;
+  if (est.overdue) range = `Any time – ${formatWait(est.high_days)}`;
+  else if (est.low_days === 0) range = `Within ${formatWait(est.high_days)}`;
+  else range = `${formatWait(est.low_days)} – ${formatWait(est.high_days)}`;
+
+  const confidence = CONFIDENCE_LABELS[est.confidence] ? est.confidence : "low";
   const seasonal = est.days_until_seasonal_sale === 0
-    ? "A Steam seasonal sale is on now."
-    : `Next Steam seasonal sale starts in ~${formatWait(est.days_until_seasonal_sale)}.`;
-  return `<p class="sale-estimate"><strong>When might it go on sale?</strong> ${lead} ${seasonal}
-    <span class="sale-estimate-note">Rough estimate from this game's own ${est.past_sales} past sales; the real date is often outside the range.</span></p>`;
+    ? "Steam seasonal sale: on now"
+    : `Steam seasonal sale: in ~${formatWait(est.days_until_seasonal_sale)}`;
+
+  const basis = `Based on its ${est.past_sales} past sales, which come about every ${formatWait(est.typical_gap_days)}. The last one was ${formatWait(est.days_since_last_sale)} ago.`;
+  const hitRate = est.hit_rate_pct == null ? "" : ` Ranges like this held about ${est.hit_rate_pct}% of the time in backtests.`;
+  let reason;
+  if (est.overdue) {
+    reason = "It's overdue by its usual pattern, so the sale could land any day.";
+  } else if (confidence === "high") {
+    reason = `The range is narrow because its sales are fairly regular.${hitRate}`;
+  } else if (confidence === "medium") {
+    reason = `Its sales are moderately regular.${hitRate}`;
+  } else {
+    reason = `The range is wide because its sales are irregular.${hitRate}`;
+  }
+
+  return `<div class="sale-estimate">
+    <div class="sale-estimate-title">Next sale estimate</div>
+    <div class="sale-estimate-head">
+      <span class="sale-range">${range}</span>
+      <span class="confidence-badge conf-${confidence}"><span class="conf-dot"></span>${CONFIDENCE_LABELS[confidence]}</span>
+    </div>
+    <div class="sale-estimate-seasonal">${seasonal}</div>
+    <p class="sale-estimate-note">${basis} ${reason} The real date can still fall outside the range.</p>
+  </div>`;
 }
 
 async function loadGameHistory(appId) {

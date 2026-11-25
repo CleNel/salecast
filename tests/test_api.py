@@ -234,8 +234,9 @@ def test_next_sale_estimate_present_for_off_sale_game_with_history(client, conn)
     conn.execute(
         "INSERT INTO tracked_games (app_id, name, first_tracked_date) VALUES (500, 'Regular Seller', '2025-01-01')"
     )
-    # five 3-day sales roughly every 60 days, then back to full price
+    # eight 3-day sales roughly every 60 days, then back to full price
     for start, end in (
+        ("2024-07-15", "2024-07-18"), ("2024-09-13", "2024-09-16"), ("2024-11-12", "2024-11-15"),
         ("2025-01-10", "2025-01-13"), ("2025-03-11", "2025-03-14"), ("2025-05-10", "2025-05-13"),
         ("2025-07-09", "2025-07-12"), ("2025-09-07", "2025-09-10"),
     ):
@@ -252,8 +253,9 @@ def test_next_sale_estimate_present_for_off_sale_game_with_history(client, conn)
     estimate = client.get("/game/500").json()["next_sale_estimate"]
 
     assert estimate is not None
-    assert estimate["past_sales"] == 5
+    assert estimate["past_sales"] == 8
     assert estimate["low_days"] <= estimate["high_days"]
+    assert estimate["confidence"] in ("high", "medium", "low")
 
 
 def test_next_sale_estimate_none_without_enough_history(client, conn):

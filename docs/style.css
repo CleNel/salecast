@@ -532,16 +532,59 @@ code {
 }
 
 .sale-estimate {
-  margin: 1rem 0 0;
-  font-size: 0.9rem;
-  line-height: 1.5;
+  margin: 1.25rem 0 0;
+}
+
+.sale-estimate-title {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sale-estimate-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 1rem;
+  margin-top: 0.2rem;
+}
+
+.sale-range {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.conf-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.conf-high { color: var(--good); }
+.conf-medium { color: var(--mid); }
+.conf-low { color: var(--text-muted); }
+
+.sale-estimate-seasonal {
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
 
 .sale-estimate-note {
-  display: block;
-  margin-top: 0.25rem;
+  margin: 0.5rem 0 0;
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
 .chart-svg {
