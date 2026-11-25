@@ -1,6 +1,6 @@
 # SaleCast — Claude Code project context
 
-Steam deal-scoring ML side project. Solo, personal repo — optimize for shipping fast, not process. Full spec/rationale: `steam-smart-buy-plan.md`. Full architecture/usage docs: `README.md`. Start with this file; go to those two only for depth on a specific piece.
+Steam deal-scoring ML side project. Solo, personal repo — optimize for shipping fast, not process. Full spec/rationale: `steam-smart-buy-plan.md`. Overview: `README.md`; detailed guides in `documentation/` (setup, usage, ml, api, frontend, deployment). Start with this file; go to those only for depth on a specific piece. Don't put markdown docs in `docs/` — that folder is the Cloudflare Pages deploy root.
 
 See `CLAUDE.local.md` (gitignored, not on GitHub) for account IDs, URLs, and anything not safe to publish.
 
